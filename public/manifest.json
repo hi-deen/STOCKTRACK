@@ -1,0 +1,28 @@
+{
+  "name": "StockTrack",
+  "short_name": "StockTrack",
+  "description": "Stock, customer, and payment tracker for distribution businesses",
+  "start_url": "/dashboard/operations",
+  "display": "standalone",
+  "background_color": "#f7efe2",
+  "theme_color": "#c2620a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

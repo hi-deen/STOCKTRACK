@@ -14,7 +14,12 @@ type PaymentModalProps = {
   defaultShopId?: string | null;
 };
 
-const methods = ["cash", "transfer", "POS", "other"];
+const methods = [
+  { value: "cash", label: "Cash" },
+  { value: "transfer", label: "Transfer" },
+  { value: "POS", label: "POS" },
+  { value: "other", label: "Other" },
+];
 
 export default function PaymentModal({ open, onClose, onSubmit, submitting, error, success, shops, defaultShopId }: PaymentModalProps) {
   const [shopQuery, setShopQuery] = useState("");
@@ -140,14 +145,15 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
               <label className="mb-1 block text-sm font-medium text-slate-700">Method</label>
               <select value={method} onChange={(event) => setMethod(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                 {methods.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
+              {method === "transfer" ? <p className="mt-2 text-sm text-amber-700">Only record this if the transfer has been confirmed received.</p> : null}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Reference / Notes</label>
               <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}

@@ -4,7 +4,8 @@ insert into storage.buckets (id, name, public)
 values ('shop-photos', 'shop-photos', false)
 on conflict (id) do nothing;
 
-create policy if not exists "Shop photos are viewable by business members"
+drop policy if exists "Shop photos are viewable by business members" on storage.objects;
+create policy "Shop photos are viewable by business members"
   on storage.objects
   for select
   using (
@@ -15,7 +16,8 @@ create policy if not exists "Shop photos are viewable by business members"
     )
   );
 
-create policy if not exists "Shop photos can be uploaded by business members"
+drop policy if exists "Shop photos can be uploaded by business members" on storage.objects;
+create policy "Shop photos can be uploaded by business members"
   on storage.objects
   for insert
   with check (
@@ -26,7 +28,8 @@ create policy if not exists "Shop photos can be uploaded by business members"
     )
   );
 
-create policy if not exists "Shop photos can be updated by business members"
+drop policy if exists "Shop photos can be updated by business members" on storage.objects;
+create policy "Shop photos can be updated by business members"
   on storage.objects
   for update
   using (
@@ -44,7 +47,8 @@ create policy if not exists "Shop photos can be updated by business members"
     )
   );
 
-create policy if not exists "Shop photos can be deleted by business members"
+drop policy if exists "Shop photos can be deleted by business members" on storage.objects;
+create policy "Shop photos can be deleted by business members"
   on storage.objects
   for delete
   using (

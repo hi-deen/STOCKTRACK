@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, BellRing, Building2, LayoutDashboard, Package, Store, Truck, Wallet, Menu, X } from "lucide-react";
+import { BarChart3, BellRing, Building2, ClipboardList, LayoutDashboard, Package, Route, Store, Truck, Wallet, Menu, X } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
+  { href: "/dashboard/operations", label: "Operations", icon: Route, highlight: true },
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/shops", label: "Shops", icon: Store },
+  { href: "/dashboard/shops", label: "Shop Directory", icon: Store },
   { href: "/dashboard/products", label: "Products", icon: Package },
-  { href: "/dashboard/stock", label: "Stock", icon: Truck },
-  { href: "/dashboard/payments", label: "Payments", icon: Wallet },
+  { href: "/dashboard/stock", label: "Stock Ledger", icon: Truck },
+  { href: "/dashboard/payments", label: "Payment Ledger", icon: Wallet },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
   { href: "/dashboard/reminders", label: "Reminders", icon: BellRing },
 ];
@@ -68,7 +70,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   key={item.href}
                   href={item.href}
                   className={`flex items-center rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                    isActive ? "bg-[color:var(--primary)] text-white shadow-sm" : "text-[color:var(--ink)] hover:bg-[color:var(--cream)]"
+                    isActive ? "bg-[color:var(--primary)] text-white shadow-sm" : item.highlight ? "bg-[color:var(--accent-soft)] text-[color:var(--accent)]" : "text-[color:var(--ink)] hover:bg-[color:var(--cream)]"
                   }`}
                   onClick={() => setMobileOpen(false)}
                 >
@@ -101,6 +103,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               <Menu className="h-5 w-5" />
             </button>
           </div>
+          <PWAInstallBanner />
           {children}
         </main>
       </div>

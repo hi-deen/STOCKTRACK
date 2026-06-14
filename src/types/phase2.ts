@@ -17,9 +17,27 @@ export type Shop = {
   area: string | null;
   address: string | null;
   notes: string | null;
+  photo_path: string | null;
   is_active: boolean;
   created_at: string;
   created_by: string | null;
+};
+
+export type ShopOperationsRow = {
+  shop_id: string;
+  shop_name: string;
+  area: string | null;
+  address: string | null;
+  phone: string | null;
+  photo_path: string | null;
+  balance: number;
+  last_restock_date: string | null;
+  days_since_restock: number | null;
+  restocked_today: boolean;
+  today_delivery_summary: string | null;
+  payments_today_total: number;
+  payment_status_today: "none" | "partial" | "full";
+  last_payment_method_today: string | null;
 };
 
 export type StockDelivery = {

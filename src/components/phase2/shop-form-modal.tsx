@@ -1,26 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Shop } from "@/types/phase2";
+import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 
 type ShopFormModalProps = {
   open: boolean;
   mode: "create" | "edit";
   shop?: Shop | null;
   onClose: () => void;
-  onSubmit: (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string }) => Promise<void>;
+  onSubmit: (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => Promise<void>;
   submitting: boolean;
   error: string | null;
   success: string | null;
+  warning?: string | null;
 };
 
-export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, submitting, error, success }: ShopFormModalProps) {
+export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, submitting, error, success, warning }: ShopFormModalProps) {
   const [name, setName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
   const [area, setArea] = useState("");
   const [address, setAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const existingPhotoUrl = useSignedPhotoUrl(shop?.photo_path ?? null);
+
+  const previewUrl = useMemo(() => photoPreviewUrl ?? existingPhotoUrl ?? null, [photoPreviewUrl, existingPhotoUrl]);
 
   useEffect(() => {
     if (open) {
@@ -30,6 +38,9 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
       setArea(shop?.area ?? "");
       setAddress(shop?.address ?? "");
       setNotes(shop?.notes ?? "");
+      setPhotoFile(null);
+      setPhotoPreviewUrl(null);
+      setRemovePhoto(false);
     }
   }, [open, shop]);
 
@@ -49,6 +60,18 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
     return null;
   }
 
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setRemovePhoto(false);
+    const objectUrl = URL.createObjectURL(file);
+    setPhotoPreviewUrl(objectUrl);
+    setPhotoFile(file);
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     await onSubmit({
@@ -58,6 +81,8 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
       area: area.trim(),
       address: address.trim(),
       notes: notes.trim(),
+      photoFile,
+      removePhoto,
     });
   };
 
@@ -95,10 +120,29 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
               </div>
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Photo</label>
+              <input type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              {previewUrl ? (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <img src={previewUrl} alt="Shop preview" className="h-16 w-16 rounded-xl object-cover" />
+                  <div className="text-sm text-slate-600">
+                    <p className="font-medium text-slate-800">{photoFile ? "New photo selected" : "Current shop photo"}</p>
+                    <p>{photoFile ? "This will replace the existing image after save." : "The current photo will stay unless you remove it."}</p>
+                  </div>
+                </div>
+              ) : null}
+              {shop?.photo_path ? (
+                <button type="button" onClick={() => { setRemovePhoto(true); setPhotoFile(null); setPhotoPreviewUrl(null); }} className="mt-2 text-sm font-semibold text-rose-600">
+                  Remove photo
+                </button>
+              ) : null}
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>
               <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
+            {warning ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700">{warning}</p> : null}
             {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
           </form>
         </div>

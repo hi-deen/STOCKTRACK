@@ -1,24 +1,47 @@
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const signedUrlCache = new Map<string, { expiresAt: number; url: string }>();
 
 export function useSignedPhotoUrl(photoPath: string | null | undefined) {
-  const supabase = createClient();
+  const [url, setUrl] = useState<string | null>(null);
 
-  if (!photoPath || !supabase) {
-    return null;
-  }
-
-  const cached = signedUrlCache.get(photoPath);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.url;
-  }
-
-  void supabase.storage.from("shop-photos").createSignedUrl(photoPath, 60 * 60).then(({ data, error }) => {
-    if (!error && data?.signedUrl) {
-      signedUrlCache.set(photoPath, { expiresAt: Date.now() + 50 * 60 * 1000, url: data.signedUrl });
+  useEffect(() => {
+    if (!photoPath) {
+      setUrl(null);
+      return;
     }
-  });
 
-  return null;
+    const cached = signedUrlCache.get(photoPath);
+    if (cached && cached.expiresAt > Date.now()) {
+      setUrl(cached.url);
+      return;
+    }
+
+    const supabase = createClient();
+    if (!supabase) {
+      setUrl(null);
+      return;
+    }
+
+    let active = true;
+    void supabase.storage.from("shop-photos").createSignedUrl(photoPath, 60 * 60).then(({ data, error }) => {
+      if (!active) {
+        return;
+      }
+
+      if (!error && data?.signedUrl) {
+        signedUrlCache.set(photoPath, { expiresAt: Date.now() + 50 * 60 * 1000, url: data.signedUrl });
+        setUrl(data.signedUrl);
+      } else {
+        setUrl(null);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [photoPath]);
+
+  return url;
 }
