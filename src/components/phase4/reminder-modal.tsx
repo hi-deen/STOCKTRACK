@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Shop } from "@/types/phase2";
 
-type PaymentModalProps = {
+type ReminderModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (payload: { shop_id: string; amount: number; payment_date: string; method: string; notes: string }) => Promise<void>;
+  onSubmit: (payload: { shop_id: string; type: string; title: string; message: string; due_date: string }) => Promise<void>;
   submitting: boolean;
   error: string | null;
   success: string | null;
@@ -14,15 +14,15 @@ type PaymentModalProps = {
   defaultShopId?: string | null;
 };
 
-const methods = ["cash", "transfer", "POS", "other"];
+const types = ["payment", "restock", "custom"];
 
-export default function PaymentModal({ open, onClose, onSubmit, submitting, error, success, shops, defaultShopId }: PaymentModalProps) {
+export default function ReminderModal({ open, onClose, onSubmit, submitting, error, success, shops, defaultShopId }: ReminderModalProps) {
   const [shopQuery, setShopQuery] = useState("");
   const [selectedShopId, setSelectedShopId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
-  const [method, setMethod] = useState("cash");
-  const [notes, setNotes] = useState("");
+  const [type, setType] = useState("payment");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [dueDate, setDueDate] = useState(new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     if (!open) {
@@ -32,10 +32,10 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
     const initialShop = shops.find((shop) => shop.id === defaultShopId) ?? null;
     setShopQuery(initialShop?.name ?? "");
     setSelectedShopId(initialShop?.id ?? "");
-    setAmount("");
-    setPaymentDate(new Date().toISOString().slice(0, 10));
-    setMethod("cash");
-    setNotes("");
+    setType("payment");
+    setTitle("");
+    setMessage("");
+    setDueDate(new Date().toISOString().slice(0, 10));
   }, [open, shops, defaultShopId]);
 
   useEffect(() => {
@@ -72,17 +72,16 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-
-    if (!selectedShopId || !amount) {
+    if (!selectedShopId || !title.trim() || !message.trim()) {
       return;
     }
 
     await onSubmit({
       shop_id: selectedShopId,
-      amount: Number(amount),
-      payment_date: paymentDate,
-      method,
-      notes: notes.trim(),
+      type,
+      title: title.trim(),
+      message: message.trim(),
+      due_date: dueDate,
     });
   };
 
@@ -90,7 +89,7 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-3 py-3 sm:px-4">
       <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
-          <h3 className="text-lg font-semibold text-slate-900">Record Payment</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Add Reminder</h3>
           <button type="button" onClick={onClose} className="text-sm text-slate-500">Close</button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
@@ -128,27 +127,28 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Amount</label>
-                <input required type="number" min="0" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Type</label>
+                <select value={type} onChange={(event) => setType(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                  {types.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Payment Date</label>
-                <input required type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Due Date</label>
+                <input required type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Method</label>
-              <select value={method} onChange={(event) => setMethod(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                {methods.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Title</label>
+              <input required value={title} onChange={(event) => setTitle(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>
-              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <label className="mb-1 block text-sm font-medium text-slate-700">Message</label>
+              <textarea required value={message} onChange={(event) => setMessage(event.target.value)} className="h-28 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+              <p className="mt-1 text-xs text-slate-500">Use plain text. Placeholders are already resolved when you create a reminder.</p>
             </div>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
@@ -162,7 +162,7 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
               form.requestSubmit();
             }
           }} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400">
-            {submitting ? "Saving..." : "Save Payment"}
+            {submitting ? "Saving..." : "Create Reminder"}
           </button>
         </div>
       </div>

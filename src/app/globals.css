@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fbf7f0;
+  --surface: #fffdf9;
+  --cream: #f4ebdf;
+  --border: #e7dac8;
+  --ink: #2b2420;
+  --muted: #6e6258;
+  --primary: #c2620a;
+  --primary-soft: #fbe8d8;
+  --secondary: #3d5a40;
+  --secondary-soft: #e8efe5;
+  --accent: #e0a458;
+  --accent-soft: #f8ebd7;
+  --success: #4f6d4d;
+  --success-soft: #e4efe0;
+  --danger: #9b433e;
+  --danger-soft: #f5e0dd;
+  --warning: #b47a1f;
+  --warning-soft: #f9ebd4;
+  --overlay: rgba(43, 36, 32, 0.45);
+  --foreground: var(--ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  margin: 0;
+  background: linear-gradient(180deg, #fcf7ef 0%, var(--background) 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(224, 164, 88, 0.2);
 }
