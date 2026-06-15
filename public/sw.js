@@ -9,6 +9,26 @@ const APP_SHELL = [
 ];
 
 const CACHE_NAME = 'stocktrack-v1';
+const IMAGE_CACHE_NAME = 'stocktrack-images-v1';
+const IMAGE_CACHE_LIMIT = 50;
+
+async function cacheFirstWithLimit(request, cacheName, limit) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(request);
+  if (response && response.ok) {
+    await cache.put(request, response.clone());
+    const keys = await cache.keys();
+    if (keys.length > limit) {
+      await cache.delete(keys[0]);
+    }
+  }
+  return response;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -50,6 +70,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.destination === 'image' || request.destination === 'manifest' || request.destination === 'script' || request.destination === 'style') {
+    if (url.hostname.includes('supabase')) {
+      event.respondWith(cacheFirstWithLimit(request, IMAGE_CACHE_NAME, IMAGE_CACHE_LIMIT));
+      return;
+    }
+
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request).then((response) => {
         const copy = response.clone();
