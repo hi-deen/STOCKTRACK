@@ -20,6 +20,14 @@ type BusinessContextValue = {
   refreshBusinesses: () => Promise<void>;
 };
 
+function resolveActiveBusinessId(businesses: BusinessSummary[], preferredBusinessId: string | null) {
+  if (preferredBusinessId && businesses.some((business) => business.id === preferredBusinessId)) {
+    return preferredBusinessId;
+  }
+
+  return businesses[0]?.id ?? null;
+}
+
 const BusinessContext = createContext<BusinessContextValue | undefined>(undefined);
 
 function readStoredBusinessId() {
@@ -115,10 +123,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setBusinesses(normalized);
 
     const storedBusinessId = readStoredBusinessId();
-    const nextActiveBusinessId =
-      storedBusinessId && normalized.some((business) => business.id === storedBusinessId)
-        ? storedBusinessId
-        : normalized[0]?.id ?? null;
+    const nextActiveBusinessId = resolveActiveBusinessId(normalized, storedBusinessId);
 
     setActiveBusinessId(nextActiveBusinessId);
     setActiveBusinessRole(
@@ -154,10 +159,11 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   const setActiveBusiness = (businessId: string | null) => {
-    const selectedBusiness = businesses.find((business) => business.id === businessId);
-    setActiveBusinessId(businessId);
+    const normalizedBusinessId = resolveActiveBusinessId(businesses, businessId);
+    const selectedBusiness = businesses.find((business) => business.id === normalizedBusinessId) ?? businesses[0] ?? null;
+    setActiveBusinessId(normalizedBusinessId);
     setActiveBusinessRole(selectedBusiness?.role ?? null);
-    persistBusinessId(businessId);
+    persistBusinessId(normalizedBusinessId);
   };
 
   const value = useMemo<BusinessContextValue>(
