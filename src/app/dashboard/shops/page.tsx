@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle, PencilLine, Plus, Search, Store, ToggleLeft, ToggleRight } from "lucide-react";
+import browserImageCompression from "browser-image-compression";
 import { useBusiness } from "@/components/providers/business-provider";
 import ShopFormModal from "@/components/phase2/shop-form-modal";
 import Badge from "@/components/ui/Badge";
@@ -23,6 +24,7 @@ export default function ShopsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [visitedTodayShopIds, setVisitedTodayShopIds] = useState<Set<string>>(new Set());
 
   const loadShops = async () => {
@@ -117,7 +119,7 @@ export default function ShopsPage() {
     return shops.filter((shop) => [shop.name, shop.area ?? "", shop.owner_name ?? ""].some((value) => value.toLowerCase().includes(normalizedQuery)));
   }, [query, shops]);
 
-  const handleCreateOrUpdate = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string }) => {
+  const handleCreateOrUpdate = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId) {
       setError("Select a business first.");
@@ -127,22 +129,87 @@ export default function ShopsPage() {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
+    setWarning(null);
+
+    const shopPayload = {
+      name: payload.name,
+      owner_name: payload.owner_name,
+      phone: payload.phone,
+      area: payload.area,
+      address: payload.address,
+      notes: payload.notes,
+    };
 
     if (editingShop) {
-      const { error } = await supabase.from("shops").update(payload).eq("id", editingShop.id).eq("business_id", activeBusinessId);
+      const { error } = await supabase.from("shops").update(shopPayload).eq("id", editingShop.id).eq("business_id", activeBusinessId);
 
       if (error) {
         setError(error.message);
         setSubmitting(false);
         return;
       }
-    } else {
-      const { error } = await supabase.from("shops").insert({ business_id: activeBusinessId, ...payload });
 
-      if (error) {
-        setError(error.message);
+      let nextPhotoPath = editingShop.photo_path ?? null;
+      if (payload.removePhoto && editingShop.photo_path) {
+        const { error: deleteError } = await supabase.storage.from("shop-photos").remove([editingShop.photo_path]);
+        if (deleteError) {
+          setWarning("The photo could not be removed from storage, but the shop update will continue.");
+        } else {
+          nextPhotoPath = null;
+        }
+      }
+
+      if (payload.photoFile) {
+        try {
+          const compressed = await browserImageCompression(payload.photoFile, { maxWidthOrHeight: 800, maxSizeMB: 0.2, useWebWorker: true });
+          const fileName = `${Date.now()}.jpg`;
+          const objectPath = `${activeBusinessId}/${editingShop.id}/${fileName}`;
+          const uploadResult = await supabase.storage.from("shop-photos").upload(objectPath, compressed, { contentType: compressed.type || "image/jpeg", upsert: true });
+          if (uploadResult.error) {
+            setWarning(`The photo could not be uploaded: ${uploadResult.error.message}`);
+          } else {
+            if (editingShop.photo_path && editingShop.photo_path !== objectPath) {
+              await supabase.storage.from("shop-photos").remove([editingShop.photo_path]);
+            }
+            nextPhotoPath = objectPath;
+          }
+        } catch {
+          setWarning("The photo could not be compressed before upload.");
+        }
+      }
+
+      if (nextPhotoPath !== editingShop.photo_path) {
+        const { error: updatePhotoError } = await supabase.from("shops").update({ photo_path: nextPhotoPath }).eq("id", editingShop.id).eq("business_id", activeBusinessId);
+        if (updatePhotoError) {
+          setWarning("The shop was updated, but the photo path could not be saved.");
+        }
+      }
+    } else {
+      const { data: insertedShop, error: insertError } = await supabase.from("shops").insert({ business_id: activeBusinessId, ...shopPayload }).select().single();
+
+      if (insertError || !insertedShop) {
+        setError(insertError?.message ?? "Could not create shop.");
         setSubmitting(false);
         return;
+      }
+
+      if (payload.photoFile) {
+        try {
+          const compressed = await browserImageCompression(payload.photoFile, { maxWidthOrHeight: 800, maxSizeMB: 0.2, useWebWorker: true });
+          const fileName = `${Date.now()}.jpg`;
+          const objectPath = `${activeBusinessId}/${insertedShop.id}/${fileName}`;
+          const uploadResult = await supabase.storage.from("shop-photos").upload(objectPath, compressed, { contentType: compressed.type || "image/jpeg", upsert: true });
+          if (uploadResult.error) {
+            setWarning(`The photo could not be uploaded: ${uploadResult.error.message}`);
+          } else {
+            const { error: updatePhotoError } = await supabase.from("shops").update({ photo_path: objectPath }).eq("id", insertedShop.id).eq("business_id", activeBusinessId);
+            if (updatePhotoError) {
+              setWarning("The shop was created, but the photo path could not be saved.");
+            }
+          }
+        } catch {
+          setWarning("The photo could not be compressed before upload.");
+        }
       }
     }
 
@@ -181,6 +248,7 @@ export default function ShopsPage() {
       </Card>
 
       {error ? <div className="rounded-[1.35rem] border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]/70 p-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
+      {warning ? <div className="rounded-[1.35rem] border border-[color:var(--warning-soft)] bg-[color:var(--warning-soft)]/70 p-3 text-sm text-[color:var(--warning)]">{warning}</div> : null}
       {success ? <div className="rounded-[1.35rem] border border-[color:var(--success-soft)] bg-[color:var(--success-soft)]/70 p-3 text-sm text-[color:var(--success)]">{success}</div> : null}
 
       <Card padded={false} className="p-3">

@@ -5,11 +5,11 @@ import { createServerClient } from "@supabase/ssr";
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const errorDescription = requestUrl.searchParams.get("error_description") ?? "Authentication failed";
+  const type = requestUrl.searchParams.get("type");
 
   if (!code) {
     const loginUrl = new URL("/login", requestUrl);
-    loginUrl.searchParams.set("message", errorDescription);
+    loginUrl.searchParams.set("error", "link_expired");
     return NextResponse.redirect(loginUrl);
   }
 
@@ -36,13 +36,16 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.session || !data.user) {
     const loginUrl = new URL("/login", requestUrl);
-    loginUrl.searchParams.set("message", "This link is invalid or has expired.");
+    loginUrl.searchParams.set("error", "link_expired");
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (type === "recovery") {
+    return NextResponse.redirect(new URL("/reset-password", requestUrl));
   }
 
   const { count } = await supabase.from("business_members").select("id", { count: "exact", head: true });
   const redirectTo = count ? "/dashboard/operations" : "/onboarding";
 
-  const redirectUrl = new URL(redirectTo, requestUrl);
-  return NextResponse.redirect(redirectUrl);
+  return NextResponse.redirect(new URL(redirectTo, requestUrl));
 }

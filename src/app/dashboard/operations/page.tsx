@@ -606,7 +606,16 @@ export default function OperationsPage() {
       }
     }
 
-    const { error } = await supabase.from("shops").update({ ...payload, photo_path: nextPhotoPath }).eq("id", editingShop.id).eq("business_id", activeBusinessId);
+    const shopPayload = {
+      name: payload.name,
+      owner_name: payload.owner_name,
+      phone: payload.phone,
+      area: payload.area,
+      address: payload.address,
+      notes: payload.notes,
+    };
+
+    const { error } = await supabase.from("shops").update({ ...shopPayload, photo_path: nextPhotoPath }).eq("id", editingShop.id).eq("business_id", activeBusinessId);
     if (error) {
       setError(error.message);
       setSubmitting(false);

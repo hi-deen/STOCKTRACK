@@ -23,9 +23,8 @@ export default function ResetPasswordPage() {
         return;
       }
 
-      const { data } = await supabase.auth.getUser();
-      const hasRecovery = Boolean(data.user?.email);
-      setStatus(hasRecovery ? "ready" : "invalid");
+      const { data } = await supabase.auth.getSession();
+      setStatus(data.session ? "ready" : "invalid");
     };
 
     void checkSession();

@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams?: { error?: string; message?: string } }) {
   const supabase = await createServerSupabaseClient();
 
   if (!supabase) {
@@ -28,6 +28,9 @@ export default async function LoginPage() {
     redirect(count ? "/dashboard/operations" : "/onboarding");
   }
 
+  const errorMessage = searchParams?.error ? "This link has expired or was already used. Please request a new one." : null;
+  const infoMessage = !errorMessage && searchParams?.message ? searchParams.message : null;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] px-4 py-12">
       <div className="w-full max-w-md space-y-6">
@@ -36,6 +39,19 @@ export default async function LoginPage() {
           <h1 className="mt-2 text-3xl font-semibold text-[color:var(--ink)]">Welcome back</h1>
           <p className="mt-2 text-sm text-[color:var(--muted)]">Sign in to manage your stock, customers, and payments.</p>
         </div>
+        {errorMessage ? (
+          <div className="rounded-[1.5rem] border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]/70 p-4 text-sm text-[color:var(--danger)]">
+            <p>{errorMessage}</p>
+            <Link href="/forgot-password" className="mt-3 inline-flex font-semibold text-[color:var(--ink)]">
+              Request a new password reset link
+            </Link>
+          </div>
+        ) : null}
+        {infoMessage ? (
+          <div className="rounded-[1.5rem] border border-[color:var(--primary-soft)] bg-[color:var(--primary-soft)]/70 p-4 text-sm text-[color:var(--primary)]">
+            {infoMessage}
+          </div>
+        ) : null}
         <AuthForm mode="login" />
         <div className="flex items-center justify-between text-sm text-[color:var(--muted)]">
           <Link href="/forgot-password" className="font-semibold text-[color:var(--ink)]">
