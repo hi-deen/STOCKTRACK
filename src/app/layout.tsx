@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import PWARegister from "@/components/PWARegister";
+import UpdateAvailable from "@/components/UpdateAvailable";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,6 +40,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <PWARegister />
+        <UpdateAvailable />
         {children}
       </body>
     </html>

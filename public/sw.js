@@ -8,8 +8,9 @@ const APP_SHELL = [
   '/apple-touch-icon.png',
 ];
 
-const CACHE_NAME = 'stocktrack-v1';
-const IMAGE_CACHE_NAME = 'stocktrack-images-v1';
+const BUILD_ID = new URL(self.location.href).searchParams.get('build') || 'dev';
+const CACHE_NAME = `stocktrack-${BUILD_ID}`;
+const IMAGE_CACHE_NAME = `stocktrack-images-${BUILD_ID}`;
 const IMAGE_CACHE_LIMIT = 50;
 
 async function cacheFirstWithLimit(request, cacheName, limit) {
