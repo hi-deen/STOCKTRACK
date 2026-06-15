@@ -53,3 +53,38 @@ export async function clearOfflineData() {
     await offlineDb.syncMeta.clear();
   });
 }
+
+export async function cacheOperationsSnapshot({
+  businessId,
+  rows,
+  products,
+}: {
+  businessId: string;
+  rows: ShopOperationsRow[];
+  products: Product[];
+}) {
+  const cachedAt = new Date().toISOString();
+
+  await offlineDb.transaction("rw", offlineDb.operationsCache, offlineDb.productsCache, offlineDb.syncMeta, async () => {
+    await offlineDb.operationsCache.bulkPut(
+      rows.map((row) => ({
+        ...row,
+        business_id: businessId,
+        cached_at: cachedAt,
+      }))
+    );
+
+    await offlineDb.productsCache.bulkPut(
+      products.map((product) => ({
+        ...product,
+        business_id: businessId,
+        cached_at: cachedAt,
+      }))
+    );
+
+    await offlineDb.syncMeta.put({
+      business_id: businessId,
+      last_synced_at: cachedAt,
+    });
+  });
+}

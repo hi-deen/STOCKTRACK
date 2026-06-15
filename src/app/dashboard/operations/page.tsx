@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, ClipboardList, Search, Store, Truck, Wallet, Camera, CircleDollarSign, PackageCheck, Filter, ArrowRight, Plus, BadgeCheck, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardList, Search, Store, Truck, Wallet, Camera, CircleDollarSign, PackageCheck, Filter, ArrowRight, Plus, BadgeCheck, AlertTriangle, CloudOff, Clock3, RefreshCw } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
 import ShopProfileModal from "@/components/modals/ShopProfileModal";
 import DeliveryModal from "@/components/phase3/delivery-modal";
@@ -14,6 +14,8 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
 import { createClient } from "@/lib/supabase/client";
+import { cacheOperationsSnapshot, offlineDb, type OperationsCacheEntry, type PendingMutation } from "@/lib/offline/db";
+import { triggerOfflineSync } from "@/lib/offline/sync";
 import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 import type { Payment, Product, Shop, ShopOperationsRow, StockDelivery } from "@/types/phase2";
 import browserImageCompression from "browser-image-compression";
@@ -30,6 +32,120 @@ function formatDays(value: number | null) {
     return "Today";
   }
   return `${value}d ago`;
+}
+
+function buildShopFromCachedRow(row: OperationsCacheEntry, businessId: string): Shop {
+  return {
+    id: row.shop_id,
+    business_id: businessId,
+    name: row.shop_name,
+    owner_name: null,
+    phone: row.phone ?? null,
+    area: row.area ?? null,
+    address: row.address ?? null,
+    notes: null,
+    photo_path: row.photo_path ?? null,
+    is_active: true,
+    created_at: new Date().toISOString(),
+    created_by: null,
+  };
+}
+
+function applyPendingMutationsToRows(rows: ShopOperationsRow[], pendingMutations: PendingMutation[]) {
+  const today = new Date().toISOString().slice(0, 10);
+  const optimisticRows = rows.map((row) => ({ ...row }));
+
+  for (const mutation of pendingMutations) {
+    if (mutation.status === "failed") {
+      continue;
+    }
+
+    const payload = mutation.payload as Record<string, unknown>;
+    const shopId = typeof payload.shop_id === "string" ? payload.shop_id : null;
+    const row = optimisticRows.find((entry) => entry.shop_id === shopId);
+    if (!row) {
+      continue;
+    }
+
+    if (mutation.type === "delivery") {
+      const totalAmount = Number(payload.total_amount ?? 0);
+      const quantity = Number(payload.quantity ?? 0);
+      const productName = typeof payload.product_name === "string" ? payload.product_name : "item";
+      const unit = typeof payload.unit === "string" ? payload.unit : "";
+      const summaryItem = [quantity > 0 ? `${quantity}${unit ? ` ${unit}` : ""}` : null, productName].filter(Boolean).join(" ");
+      row.balance = Number(row.balance) + totalAmount;
+      row.restocked_today = true;
+      row.days_since_restock = 0;
+      row.last_restock_date = today;
+      row.today_delivery_summary = [row.today_delivery_summary, summaryItem].filter(Boolean).join(" • ");
+    }
+
+    if (mutation.type === "payment") {
+      const amount = Number(payload.amount ?? 0);
+      row.balance = Math.max(0, Number(row.balance) - amount);
+      row.payments_today_total = Number(row.payments_today_total ?? 0) + amount;
+      row.payment_status_today = row.balance <= 0 ? "full" : "partial";
+      row.last_payment_method_today = typeof payload.method === "string" ? payload.method : row.last_payment_method_today;
+    }
+  }
+
+  return optimisticRows;
+}
+
+async function persistOptimisticCacheUpdate({
+  businessId,
+  mutation,
+  currentRows,
+}: {
+  businessId: string;
+  mutation: PendingMutation;
+  currentRows: ShopOperationsRow[];
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const shopId = typeof mutation.payload.shop_id === "string" ? mutation.payload.shop_id : null;
+  if (!shopId) {
+    return;
+  }
+
+  const currentRow = currentRows.find((entry) => entry.shop_id === shopId);
+  if (!currentRow) {
+    return;
+  }
+
+  let nextRow = { ...currentRow };
+  if (mutation.type === "delivery") {
+    const totalAmount = Number(mutation.payload.total_amount ?? 0);
+    const quantity = Number(mutation.payload.quantity ?? 0);
+    const productName = typeof mutation.payload.product_name === "string" ? mutation.payload.product_name : "item";
+    const unit = typeof mutation.payload.unit === "string" ? mutation.payload.unit : "";
+    const summaryItem = [quantity > 0 ? `${quantity}${unit ? ` ${unit}` : ""}` : null, productName].filter(Boolean).join(" ");
+    nextRow.balance = Number(nextRow.balance) + totalAmount;
+    nextRow.restocked_today = true;
+    nextRow.days_since_restock = 0;
+    nextRow.last_restock_date = today;
+    nextRow.today_delivery_summary = [nextRow.today_delivery_summary, summaryItem].filter(Boolean).join(" • ");
+  }
+
+  if (mutation.type === "payment") {
+    const amount = Number(mutation.payload.amount ?? 0);
+    nextRow.balance = Math.max(0, Number(nextRow.balance) - amount);
+    nextRow.payments_today_total = Number(nextRow.payments_today_total ?? 0) + amount;
+    nextRow.payment_status_today = nextRow.balance <= 0 ? "full" : "partial";
+    nextRow.last_payment_method_today = typeof mutation.payload.method === "string" ? mutation.payload.method : nextRow.last_payment_method_today;
+  }
+
+  const cachedAt = new Date().toISOString();
+  await offlineDb.operationsCache.put({
+    ...nextRow,
+    business_id: businessId,
+    cached_at: cachedAt,
+  });
+}
+
+function isNetworkError(error: unknown) {
+  if (!error) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return /network|failed to fetch|fetch failed|offline|socket|timeout/i.test(message);
 }
 
 export default function OperationsPage() {
@@ -51,36 +167,119 @@ export default function OperationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
+  const [offlineToast, setOfflineToast] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [pendingMutations, setPendingMutations] = useState<PendingMutation[]>([]);
+  const [showPendingPanel, setShowPendingPanel] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [failedMutations, setFailedMutations] = useState<PendingMutation[]>([]);
+
+  const loadPendingState = async (businessId: string) => {
+    const pendingItems = await offlineDb.pendingMutations.where("business_id").equals(businessId).toArray();
+    setPendingMutations(pendingItems);
+    setPendingSyncCount(pendingItems.filter((item) => item.status === "pending" || item.status === "syncing").length);
+    setFailedMutations(pendingItems.filter((item) => item.status === "failed"));
+  };
 
   const loadOperations = async () => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId) {
       setRows([]);
+      setShops([]);
+      setProducts([]);
+      setOfflineNotice(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    await loadPendingState(activeBusinessId);
     const [operationsRes, shopsRes, productsRes] = await Promise.all([
       supabase.rpc("get_operations_view", { business_id_input: activeBusinessId }),
       supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("name"),
       supabase.from("products").select("*").eq("business_id", activeBusinessId).order("name"),
     ]);
 
-    if (operationsRes.error) {
-      setError(operationsRes.error.message);
+    const useOfflineFallback = typeof window === "undefined" ? false : !navigator.onLine || Boolean(operationsRes.error || shopsRes.error || productsRes.error);
+
+    if (useOfflineFallback) {
+      const [cachedRows, cachedProducts, pendingMutations, syncMeta] = await Promise.all([
+        offlineDb.operationsCache.where("business_id").equals(activeBusinessId).toArray(),
+        offlineDb.productsCache.where("business_id").equals(activeBusinessId).toArray(),
+        offlineDb.pendingMutations.where("business_id").equals(activeBusinessId).filter((mutation) => mutation.status === "pending" || mutation.status === "syncing").toArray(),
+        offlineDb.syncMeta.get(activeBusinessId),
+      ]);
+
+      const optimisticRows = applyPendingMutationsToRows(cachedRows as OperationsCacheEntry[], pendingMutations);
+      const derivedShops = optimisticRows.map((row) => buildShopFromCachedRow(row as OperationsCacheEntry, activeBusinessId));
+      const cachedAt = syncMeta?.last_synced_at ?? null;
+
+      setRows(optimisticRows);
+      setShops(derivedShops);
+      setProducts((cachedProducts ?? []) as Product[]);
+      setOfflineNotice(cachedAt ? `Offline - showing data cached at ${cachedAt}` : "Offline - showing cached data");
+      setError(null);
       setLoading(false);
       return;
     }
 
-    setRows((operationsRes.data ?? []) as ShopOperationsRow[]);
+    const nextRows = (operationsRes.data ?? []) as ShopOperationsRow[];
+    const nextProducts = (productsRes.data ?? []) as Product[];
+
+    setRows(nextRows);
     setShops((shopsRes.data ?? []) as Shop[]);
-    setProducts((productsRes.data ?? []) as Product[]);
+    setProducts(nextProducts);
+    setOfflineNotice(null);
+
+    if (typeof window !== "undefined" && navigator.onLine && !productsRes.error) {
+      void cacheOperationsSnapshot({ businessId: activeBusinessId, rows: nextRows, products: nextProducts });
+    }
+
     setLoading(false);
   };
 
   useEffect(() => {
     void loadOperations();
+  }, [activeBusinessId]);
+
+  useEffect(() => {
+    if (!activeBusinessId || !window?.navigator?.onLine) {
+      return;
+    }
+
+    const runAutoSync = async () => {
+      const pendingCount = await offlineDb.pendingMutations.where("business_id").equals(activeBusinessId).filter((mutation) => mutation.status === "pending" || mutation.status === "syncing").count();
+      if (pendingCount > 0) {
+        setSyncing(true);
+        try {
+          await triggerOfflineSync(activeBusinessId);
+          await loadOperations();
+        } finally {
+          setSyncing(false);
+        }
+      }
+    };
+
+    const onOnline = () => {
+      void runAutoSync();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void runAutoSync();
+      }
+    };
+
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    void runAutoSync();
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [activeBusinessId]);
 
   useEffect(() => {
@@ -161,6 +360,20 @@ export default function OperationsPage() {
     setPaymentModalOpen(true);
   };
 
+  const handleSyncNow = async () => {
+    if (!activeBusinessId) {
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      await triggerOfflineSync(activeBusinessId);
+      await loadOperations();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleCreateDelivery = async (payload: { shop_id: string; product_id: string; quantity: number; unit_price: number; delivery_date: string; notes: string }) => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId) {
@@ -170,11 +383,75 @@ export default function OperationsPage() {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
-    const { error } = await supabase.from("stock_deliveries").insert({ business_id: activeBusinessId, shop_id: payload.shop_id, product_id: payload.product_id, quantity: payload.quantity, unit_price: payload.unit_price, total_amount: payload.quantity * payload.unit_price, delivery_date: payload.delivery_date, notes: payload.notes || null, created_by: (await supabase.auth.getUser()).data.user?.id ?? null });
-    if (error) {
-      setError(error.message); setSubmitting(false); return;
+    setOfflineToast(null);
+
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const totalAmount = payload.quantity * payload.unit_price;
+    const deliveryPayload = {
+      business_id: activeBusinessId,
+      shop_id: payload.shop_id,
+      product_id: payload.product_id,
+      quantity: payload.quantity,
+      unit_price: payload.unit_price,
+      total_amount: totalAmount,
+      delivery_date: payload.delivery_date,
+      notes: payload.notes || null,
+      created_by: userId,
+      product_name: products.find((item) => item.id === payload.product_id)?.name ?? "item",
+      unit: products.find((item) => item.id === payload.product_id)?.unit ?? "",
+    };
+
+    const shouldQueueOffline = typeof window !== "undefined" && !navigator.onLine;
+
+    try {
+      if (shouldQueueOffline) {
+        throw new Error("offline");
+      }
+
+      const { error } = await supabase.from("stock_deliveries").insert({
+        business_id: activeBusinessId,
+        shop_id: payload.shop_id,
+        product_id: payload.product_id,
+        quantity: payload.quantity,
+        unit_price: payload.unit_price,
+        total_amount: totalAmount,
+        delivery_date: payload.delivery_date,
+        notes: payload.notes || null,
+        created_by: userId,
+      });
+
+      if (error) {
+        if (isNetworkError(error) || !navigator.onLine) {
+          throw error;
+        }
+        setError(error.message);
+        setSubmitting(false);
+        return;
+      }
+
+      setSuccess("Restock recorded.");
+      setSubmitting(false);
+      setDeliveryModalOpen(false);
+      await loadOperations();
+      return;
+    } catch (error) {
+      const mutation: PendingMutation = {
+        business_id: activeBusinessId,
+        type: "delivery",
+        payload: deliveryPayload,
+        created_at: new Date().toISOString(),
+        status: "pending",
+        error_message: null,
+      };
+      await offlineDb.pendingMutations.add(mutation);
+      const nextRows = applyPendingMutationsToRows(rows, [mutation]);
+      setRows(nextRows);
+      await persistOptimisticCacheUpdate({ businessId: activeBusinessId, mutation, currentRows: rows });
+      setOfflineToast("Saved offline - will sync when connected");
+      setSubmitting(false);
+      setDeliveryModalOpen(false);
+      await loadOperations();
     }
-    setSuccess("Restock recorded."); setSubmitting(false); setDeliveryModalOpen(false); await loadOperations();
   };
 
   const handleCreatePayment = async (payload: { shop_id: string; amount: number; payment_date: string; method: string; notes: string }) => {
@@ -186,11 +463,107 @@ export default function OperationsPage() {
     setSubmitting(true);
     setError(null);
     setSuccess(null);
-    const { error } = await supabase.from("payments").insert({ business_id: activeBusinessId, shop_id: payload.shop_id, amount: payload.amount, payment_date: payload.payment_date, method: payload.method, notes: payload.notes || null, created_by: (await supabase.auth.getUser()).data.user?.id ?? null });
-    if (error) {
-      setError(error.message); setSubmitting(false); return;
+    setOfflineToast(null);
+
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const paymentPayload = {
+      business_id: activeBusinessId,
+      shop_id: payload.shop_id,
+      amount: payload.amount,
+      payment_date: payload.payment_date,
+      method: payload.method,
+      notes: payload.notes || null,
+      created_by: userId,
+    };
+
+    const shouldQueueOffline = typeof window !== "undefined" && !navigator.onLine;
+
+    try {
+      if (shouldQueueOffline) {
+        throw new Error("offline");
+      }
+
+      const { error } = await supabase.from("payments").insert({
+        business_id: activeBusinessId,
+        shop_id: payload.shop_id,
+        amount: payload.amount,
+        payment_date: payload.payment_date,
+        method: payload.method,
+        notes: payload.notes || null,
+        created_by: userId,
+      });
+
+      if (error) {
+        if (isNetworkError(error) || !navigator.onLine) {
+          throw error;
+        }
+        setError(error.message);
+        setSubmitting(false);
+        return;
+      }
+
+      setSuccess("Payment recorded.");
+      setSubmitting(false);
+      setPaymentModalOpen(false);
+      await loadOperations();
+      return;
+    } catch (error) {
+      const mutation: PendingMutation = {
+        business_id: activeBusinessId,
+        type: "payment",
+        payload: paymentPayload,
+        created_at: new Date().toISOString(),
+        status: "pending",
+        error_message: null,
+      };
+      await offlineDb.pendingMutations.add(mutation);
+      const nextRows = applyPendingMutationsToRows(rows, [mutation]);
+      setRows(nextRows);
+      await persistOptimisticCacheUpdate({ businessId: activeBusinessId, mutation, currentRows: rows });
+
+      const currentRow = rows.find((entry) => entry.shop_id === payload.shop_id);
+      const nextBalance = Math.max(0, Number(currentRow?.balance ?? 0) - payload.amount);
+      if (nextBalance > 0) {
+        const reminderMutation: PendingMutation = {
+          business_id: activeBusinessId,
+          type: "reminder",
+          payload: {
+            business_id: activeBusinessId,
+            shop_id: payload.shop_id,
+            type: "payment",
+            title: "Follow up payment",
+            message: "A partial payment was recorded while offline. Please confirm the remaining balance when connected.",
+            due_date: new Date().toISOString().slice(0, 10),
+            created_by: userId,
+          },
+          created_at: new Date().toISOString(),
+          status: "pending",
+          error_message: null,
+        };
+        await offlineDb.pendingMutations.add(reminderMutation);
+      }
+
+      setOfflineToast("Saved offline - will sync when connected");
+      setSubmitting(false);
+      setPaymentModalOpen(false);
+      await loadOperations();
     }
-    setSuccess("Payment recorded."); setSubmitting(false); setPaymentModalOpen(false); await loadOperations();
+  };
+
+  const handleRetryMutation = async (mutationId: number) => {
+    await offlineDb.pendingMutations.update(mutationId, { status: "pending", error_message: null });
+    await loadPendingState(activeBusinessId!);
+    await handleSyncNow();
+  };
+
+  const handleDiscardMutation = async (mutationId: number) => {
+    const confirmed = window.confirm("Discard this queued change? The local data will be lost.");
+    if (!confirmed) {
+      return;
+    }
+    await offlineDb.pendingMutations.delete(mutationId);
+    await loadPendingState(activeBusinessId!);
+    await loadOperations();
   };
 
   const handleUpdateShop = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => {
@@ -263,6 +636,9 @@ export default function OperationsPage() {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => { setEditingShop(null); setShopModalOpen(true); }} icon={Plus}>Add Shop</Button>
             <Button variant="outline" href="/dashboard/stock">Open Stock Ledger</Button>
+            <Button variant="outline" onClick={handleSyncNow} disabled={syncing}>
+              {syncing ? "Syncing..." : "Sync now"}
+            </Button>
           </div>
         </div>
       </Card>
@@ -270,6 +646,66 @@ export default function OperationsPage() {
       {error ? <div className="rounded-[1.35rem] border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]/70 p-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
       {success ? <div className="rounded-[1.35rem] border border-[color:var(--success-soft)] bg-[color:var(--success-soft)]/70 p-3 text-sm text-[color:var(--success)]">{success}</div> : null}
       {warning ? <div className="rounded-[1.35rem] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{warning}</div> : null}
+      {offlineToast ? (
+        <div className="flex items-center gap-2 rounded-[1.35rem] border border-[color:var(--border)] bg-[color:var(--cream)]/90 px-3 py-2 text-sm text-[color:var(--ink)]">
+          <CloudOff className="h-4 w-4 text-[color:var(--primary)]" />
+          {offlineToast}
+        </div>
+      ) : null}
+      {offlineNotice ? (
+        <div className="flex items-center gap-2 rounded-[1.35rem] border border-[color:var(--border)] bg-[color:var(--cream)]/80 px-3 py-2 text-sm text-[color:var(--ink)]">
+          <CloudOff className="h-4 w-4 text-[color:var(--primary)]" />
+          {offlineNotice}
+        </div>
+      ) : null}
+      {pendingSyncCount > 0 ? (
+        <div className="flex flex-col gap-2 rounded-[1.35rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-3">
+          <button type="button" onClick={() => setShowPendingPanel((value) => !value)} className="flex items-center justify-between text-sm font-semibold text-[color:var(--ink)]">
+            <span>{pendingSyncCount} pending sync</span>
+            <Clock3 className="h-4 w-4 text-[color:var(--primary)]" />
+          </button>
+          {showPendingPanel ? (
+            <div className="space-y-2">
+              {pendingMutations.length > 0 ? pendingMutations.map((mutation) => {
+                const shopName = shops.find((shop) => shop.id === mutation.payload.shop_id)?.name ?? "Unknown shop";
+                return (
+                  <div key={mutation.id} className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--cream)]/60 p-3 text-sm text-[color:var(--muted)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-[color:var(--ink)]">{shopName}</p>
+                        <p className="mt-1">{mutation.type} • {new Date(mutation.created_at).toLocaleString()}</p>
+                      </div>
+                      <span className="rounded-full bg-[color:var(--surface)] px-2 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--ink)]">{mutation.status}</span>
+                    </div>
+                  </div>
+                );
+              }) : <p className="text-sm text-[color:var(--muted)]">No pending actions right now.</p>}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {failedMutations.length > 0 ? (
+        <div className="rounded-[1.35rem] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+          <p className="font-semibold">Sync issues ({failedMutations.length})</p>
+          <div className="mt-2 space-y-2">
+            {failedMutations.map((mutation) => {
+              const shopName = shops.find((shop) => shop.id === mutation.payload.shop_id)?.name ?? "Unknown shop";
+              return (
+                <div key={mutation.id} className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold">{shopName}</p>
+                    <p className="text-xs">{mutation.type} • {mutation.error_message}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => void handleRetryMutation(mutation.id!)} className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800">Retry</button>
+                    <button type="button" onClick={() => void handleDiscardMutation(mutation.id!)} className="rounded-xl border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800">Discard</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border border-[color:var(--border)] bg-[color:var(--surface)]">
@@ -327,6 +763,7 @@ export default function OperationsPage() {
                                 <p className="truncate text-sm font-semibold text-[color:var(--ink)]">{row.shop_name}</p>
                                 <Badge variant={isUrgent ? "warning" : "neutral"}>{formatDays(row.days_since_restock)}</Badge>
                                 <Badge variant={badgeVariant}>{row.balance > 0 ? formatCurrency(row.balance) : "Cleared"}</Badge>
+                                {pendingMutations.some((item) => item.payload.shop_id === row.shop_id && (item.status === "pending" || item.status === "syncing")) ? <Clock3 className="h-3.5 w-3.5 text-[color:var(--primary)]" /> : null}
                               </div>
                               <p className="mt-1 text-sm text-[color:var(--muted)]">{row.address || "No address on file"}</p>
                               <div className="mt-2 flex flex-wrap items-center gap-2">

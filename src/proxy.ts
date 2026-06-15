@@ -28,6 +28,8 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const publicPaths = ["/forgot-password", "/reset-password", "/auth/callback", "/login", "/signup", "/onboarding"];
+
   if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
@@ -35,9 +37,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  if (!user && publicPaths.includes(request.nextUrl.pathname)) {
+    return response;
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/forgot-password", "/reset-password", "/auth/callback"],
 };
