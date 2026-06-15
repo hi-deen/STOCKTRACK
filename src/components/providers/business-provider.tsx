@@ -75,6 +75,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from("business_members")
       .select("role, businesses(id, name)")
+      .eq("user_id", user.id)
       .order("joined_at", { ascending: true });
 
     if (error) {
@@ -89,8 +90,6 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       businesses: { id: string; name: string } | null;
     }>;
 
-    console.info("business-provider raw rows", rows);
-
     const seenBusinessIds = new Set<string>();
     const normalized = rows.flatMap((row) => {
       if (!row.businesses) {
@@ -103,16 +102,16 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       }
 
       seenBusinessIds.add(businessId);
+      const normalizedRole = typeof row.role === "string" ? row.role.toLowerCase() : "staff";
+
       return [
         {
           id: businessId,
           name: row.businesses.name,
-          role: row.role,
+          role: normalizedRole,
         },
       ];
     });
-
-    console.info("business-provider normalized businesses", normalized);
     setBusinesses(normalized);
 
     const storedBusinessId = readStoredBusinessId();

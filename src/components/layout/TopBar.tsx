@@ -29,6 +29,7 @@ export default function TopBar() {
   const activeBusinessName = activeBusinessId
     ? businesses.find((business) => business.id === activeBusinessId)?.name ?? "Selected business"
     : "No business selected";
+  const activeBusinessLabel = activeBusinessRole === "owner" ? "Owner" : activeBusinessRole === "staff" ? "Staff" : "Member";
 
   useEffect(() => {
     if (!sheetOpen && !menuOpen && !addBusinessOpen) {
@@ -129,7 +130,7 @@ export default function TopBar() {
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[color:var(--ink)]">{activeBusinessName}</p>
-            <p className="text-xs text-[color:var(--muted)]">{activeBusinessRole === "owner" ? "Owner" : "Member"}</p>
+            <p className="text-xs text-[color:var(--muted)]">{activeBusinessLabel}</p>
           </div>
           <ChevronDown className="ml-1 h-4 w-4 text-[color:var(--muted)]" />
         </button>
@@ -207,7 +208,7 @@ export default function TopBar() {
                 >
                   <span>
                     <span className="block text-sm font-semibold text-[color:var(--ink)]">{business.name}</span>
-                    <span className="text-xs text-[color:var(--muted)]">{business.role === "owner" ? "Owner" : "Member"}</span>
+                    <span className="text-xs text-[color:var(--muted)]">{business.role === "owner" ? "Owner" : business.role === "staff" ? "Staff" : "Member"}</span>
                   </span>
                   {business.id === activeBusinessId ? <span className="text-sm font-semibold text-[color:var(--primary)]">Active</span> : null}
                 </button>
