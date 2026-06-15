@@ -153,13 +153,13 @@ export default function TopBar() {
 
             {menuOpen ? (
               <div className="absolute right-0 mt-2 w-56 rounded-[1.25rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-2 shadow-[0_20px_60px_-30px_rgba(43,36,32,0.65)]">
-                <Link href="/dashboard/stock" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>
+                <Link href="/dashboard/product-delivery" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>
                   <Package className="mr-2 h-4 w-4" />
-                  Stock Ledger
+                  Product Delivery
                 </Link>
                 <Link href="/dashboard/payments" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>
                   <ShieldCheck className="mr-2 h-4 w-4" />
-                  Payment Ledger
+                  Payments
                 </Link>
                 <div className="my-2 h-px bg-[color:var(--border)]" />
                 <Link href="/dashboard/members" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>

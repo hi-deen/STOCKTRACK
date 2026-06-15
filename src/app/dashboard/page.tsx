@@ -237,7 +237,7 @@ export default function DashboardPage() {
           <Card>
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold text-[color:var(--ink)]">Recent activity</h2>
-              <Link href="/dashboard/stock" className="text-sm font-semibold text-[color:var(--primary)]">
+              <Link href="/dashboard/product-delivery" className="text-sm font-semibold text-[color:var(--primary)]">
                 View history
               </Link>
             </div>

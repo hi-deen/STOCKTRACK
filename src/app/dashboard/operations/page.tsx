@@ -635,7 +635,7 @@ export default function OperationsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => { setEditingShop(null); setShopModalOpen(true); }} icon={Plus}>Add Shop</Button>
-            <Button variant="outline" href="/dashboard/stock">Open Stock Ledger</Button>
+            <Button variant="outline" href="/dashboard/product-delivery">Open Product Delivery</Button>
             <Button variant="outline" onClick={handleSyncNow} disabled={syncing}>
               {syncing ? "Syncing..." : "Sync now"}
             </Button>
