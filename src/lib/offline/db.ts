@@ -66,21 +66,28 @@ export async function cacheOperationsSnapshot({
   const cachedAt = new Date().toISOString();
 
   await offlineDb.transaction("rw", offlineDb.operationsCache, offlineDb.productsCache, offlineDb.syncMeta, async () => {
-    await offlineDb.operationsCache.bulkPut(
-      rows.map((row) => ({
-        ...row,
-        business_id: businessId,
-        cached_at: cachedAt,
-      }))
-    );
+    const validRows = rows.filter((row) => row.shop_id != null && row.shop_id !== "");
+    const validProducts = products.filter((product) => product.id != null && product.id !== "");
 
-    await offlineDb.productsCache.bulkPut(
-      products.map((product) => ({
-        ...product,
-        business_id: businessId,
-        cached_at: cachedAt,
-      }))
-    );
+    if (validRows.length > 0) {
+      await offlineDb.operationsCache.bulkPut(
+        validRows.map((row) => ({
+          ...row,
+          business_id: businessId,
+          cached_at: cachedAt,
+        }))
+      );
+    }
+
+    if (validProducts.length > 0) {
+      await offlineDb.productsCache.bulkPut(
+        validProducts.map((product) => ({
+          ...product,
+          business_id: businessId,
+          cached_at: cachedAt,
+        }))
+      );
+    }
 
     await offlineDb.syncMeta.put({
       business_id: businessId,

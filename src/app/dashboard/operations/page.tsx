@@ -566,6 +566,61 @@ export default function OperationsPage() {
     await loadOperations();
   };
 
+  const handleCreateShop = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => {
+    const supabase = createClient();
+    if (!supabase || !activeBusinessId) {
+      setError("Select a business first.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
+    setWarning(null);
+
+    let photoPath = null;
+    if (payload.photoFile) {
+      try {
+        const compressed = await browserImageCompression(payload.photoFile, { maxWidthOrHeight: 800, maxSizeMB: 0.2, useWebWorker: true });
+        const shopId = `shop_${Date.now()}`;
+        const fileName = `${Date.now()}.jpg`;
+        const objectPath = `${activeBusinessId}/${shopId}/${fileName}`;
+        const uploadResult = await supabase.storage.from("shop-photos").upload(objectPath, compressed, { contentType: compressed.type || "image/jpeg" });
+        if (uploadResult.error) {
+          setWarning(`The photo could not be uploaded: ${uploadResult.error.message}`);
+        } else {
+          photoPath = objectPath;
+        }
+      } catch {
+        setWarning("The photo could not be compressed before upload.");
+      }
+    }
+
+    const shopPayload = {
+      business_id: activeBusinessId,
+      name: payload.name,
+      owner_name: payload.owner_name || null,
+      phone: payload.phone || null,
+      area: payload.area || null,
+      address: payload.address || null,
+      notes: payload.notes || null,
+      photo_path: photoPath,
+      is_active: true,
+    };
+
+    const { error } = await supabase.from("shops").insert([shopPayload]);
+    if (error) {
+      setError(error.message);
+      setSubmitting(false);
+      return;
+    }
+
+    setSuccess("Shop created.");
+    setSubmitting(false);
+    setShopModalOpen(false);
+    setEditingShop(null);
+    await loadOperations();
+  };
+
   const handleUpdateShop = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId || !editingShop) {
@@ -804,7 +859,7 @@ export default function OperationsPage() {
 
       <DeliveryModal open={deliveryModalOpen} onClose={() => { setDeliveryModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreateDelivery} submitting={submitting} error={error} success={success} shops={shops} products={products} defaultShopId={activeShopId} />
       <PaymentModal open={paymentModalOpen} onClose={() => { setPaymentModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreatePayment} submitting={submitting} error={error} success={success} shops={shops} defaultShopId={activeShopId} />
-      <ShopFormModal open={shopModalOpen} mode={editingShop ? "edit" : "create"} shop={editingShop} onClose={() => { setShopModalOpen(false); setEditingShop(null); setError(null); setSuccess(null); setWarning(null); }} onSubmit={handleUpdateShop} submitting={submitting} error={error} success={success} warning={warning} />
+      <ShopFormModal open={shopModalOpen} mode={editingShop ? "edit" : "create"} shop={editingShop} onClose={() => { setShopModalOpen(false); setEditingShop(null); setError(null); setSuccess(null); setWarning(null); }} onSubmit={editingShop ? handleUpdateShop : handleCreateShop} submitting={submitting} error={error} success={success} warning={warning} />
     </div>
   );
 }

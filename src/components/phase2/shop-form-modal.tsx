@@ -120,7 +120,7 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Photo</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Photo <span className="text-xs text-slate-500">(optional)</span></label>
               <input type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
               {previewUrl ? (
                 <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
