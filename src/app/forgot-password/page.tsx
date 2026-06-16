@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
     await supabase.auth.resetPasswordForEmail(nextEmail, { redirectTo });
 
     start();
-    setSuccess("Enter the 6-digit code sent to your email");
+    setSuccess("Enter the reset code sent to your email");
     setStage(2);
     setLoading(false);
   };
@@ -67,8 +67,8 @@ export default function ForgotPasswordPage() {
     }
 
     const trimmedCode = code.trim();
-    if (!/^[0-9]{6}$/.test(trimmedCode)) {
-      setError("Enter the 6-digit code");
+    if (trimmedCode.length === 0) {
+      setError("Please enter the reset code");
       setLoading(false);
       return;
     }
@@ -151,7 +151,7 @@ export default function ForgotPasswordPage() {
             </form>
           ) : (
             <form onSubmit={handleVerifyAndReset} className="space-y-4">
-              <p className="text-sm text-[color:var(--muted)]">Enter the 6-digit code sent to {email}</p>
+              <p className="text-sm text-[color:var(--muted)]">Enter the reset code sent to {email}</p>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="otp">Reset code</label>
@@ -160,6 +160,7 @@ export default function ForgotPasswordPage() {
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
+                  maxLength={32}
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 32))}
                   className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm outline-none focus:border-slate-900"
