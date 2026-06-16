@@ -154,16 +154,16 @@ export default function ForgotPasswordPage() {
               <p className="text-sm text-[color:var(--muted)]">Enter the 6-digit code sent to {email}</p>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="otp">6-digit code</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="otp">Reset code</label>
                 <input
                   id="otp"
+                  type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  maxLength={6}
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 32))}
                   className="w-full rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm outline-none focus:border-slate-900"
-                  placeholder="123456"
+                  placeholder="Enter reset code"
                 />
               </div>
 
