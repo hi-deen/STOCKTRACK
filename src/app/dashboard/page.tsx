@@ -144,6 +144,8 @@ export default function DashboardPage() {
     }));
   }, [deliveries]);
 
+  const visibleActivity = activity.slice(0, 5);
+
   if (businessLoading || loading) {
     return (
       <div className="space-y-6">
@@ -171,93 +173,13 @@ export default function DashboardPage() {
 
       {error ? <div className="rounded-[1.35rem] border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]/70 p-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         {cards.map((card) => (
           <StatTile key={card.label} icon={card.icon} label={card.label} value={card.value} tone={card.tone} trend={<span>{card.hint}</span>} />
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-[color:var(--ink)]">Delivery momentum</h2>
-              <p className="mt-1 text-sm text-[color:var(--muted)]">A quick look at stock value delivered over the last week.</p>
-            </div>
-            <Badge variant="info">Last 7 days</Badge>
-          </div>
-          <div className="mt-5 h-64">
-            {chartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7dac8" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6e6258" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "#6e6258" }} />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                  <Bar dataKey="value" fill="#c2620a" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center rounded-[1.2rem] border border-dashed border-[color:var(--border)] bg-[color:var(--cream)]/50">
-                <p className="text-sm text-[color:var(--muted)]">No delivery data yet.</p>
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[color:var(--ink)]">Suggested actions</h2>
-              <Link href="/dashboard/reminders" className="text-sm font-semibold text-[color:var(--primary)]">
-                See all
-              </Link>
-            </div>
-            {suggestedPreview.length === 0 ? (
-              <div className="mt-4">
-                <EmptyState icon={BellRing} title="Nothing to follow up" description="Your reminders suggestions will appear here when it is time to nudge a shop." />
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {suggestedPreview.map((item) => (
-                  <div key={`${item.shop_id}-${item.type}`} className="rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/50 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[color:var(--ink)]">{item.shop_name}</p>
-                        <p className="mt-1 text-sm text-[color:var(--muted)]">{item.reason}</p>
-                      </div>
-                      <Badge variant={item.type === "payment" ? "warning" : "info"}>{item.type}</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[color:var(--ink)]">Recent activity</h2>
-              <Link href="/dashboard/product-delivery" className="text-sm font-semibold text-[color:var(--primary)]">
-                View history
-              </Link>
-            </div>
-            <div className="mt-4 space-y-3">
-              {activity.map((item) => (
-                <div key={item.id} className="rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/40 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-[color:var(--ink)]">{item.title}</p>
-                    <Badge variant={item.kind === "payment" ? "success" : "info"}>{item.kind}</Badge>
-                  </div>
-                  <p className="mt-1 text-sm text-[color:var(--muted)]">{item.subtitle}</p>
-                  <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[color:var(--muted)]">{formatRelativeDate(item.date)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -288,14 +210,62 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <h2 className="text-lg font-semibold text-[color:var(--ink)]">Business pulse</h2>
-          <div className="mt-4 space-y-3 rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/50 p-4 text-sm text-[color:var(--muted)]">
-            <p>{shops.length} shops are active in this business.</p>
-            <p>{products.length} products are ready for deliveries.</p>
-            <p>{reminderCount} reminders are currently due or overdue.</p>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-[color:var(--ink)]">Recent activity</h2>
+            <Link href="/dashboard/reports" className="text-sm font-semibold text-[color:var(--primary)]">
+              See all in History
+            </Link>
+          </div>
+          <div className="mt-4 space-y-3">
+            {visibleActivity.map((item) => (
+              <div key={item.id} className="rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/40 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-[color:var(--ink)]">{item.title}</p>
+                  <Badge variant={item.kind === "payment" ? "success" : "info"}>{item.kind}</Badge>
+                </div>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">{item.subtitle}</p>
+                <p className="mt-2 text-xs uppercase tracking-[0.24em] text-[color:var(--muted)]">{formatRelativeDate(item.date)}</p>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
+
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[color:var(--ink)]">Delivery momentum</h2>
+            <p className="mt-1 text-sm text-[color:var(--muted)]">A quick look at stock value delivered over the last week.</p>
+          </div>
+          <Badge variant="info">Last 7 days</Badge>
+        </div>
+        <div className="mt-5 h-64">
+          {chartData.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7dac8" />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6e6258" }} />
+                <YAxis tick={{ fontSize: 12, fill: "#6e6258" }} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
+                <Bar dataKey="value" fill="#c2620a" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-[1.2rem] border border-dashed border-[color:var(--border)] bg-[color:var(--cream)]/50">
+              <p className="text-sm text-[color:var(--muted)]">No delivery data yet.</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="text-lg font-semibold text-[color:var(--ink)]">Business pulse</h2>
+        <div className="mt-4 space-y-3 rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/50 p-4 text-sm text-[color:var(--muted)]">
+          <p>{shops.length} shops are active in this business.</p>
+          <p>{products.length} products are ready for deliveries.</p>
+          <p>{reminderCount} reminders are currently due or overdue.</p>
+        </div>
+      </Card>
     </div>
   );
 }

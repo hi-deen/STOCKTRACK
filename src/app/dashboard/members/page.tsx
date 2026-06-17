@@ -23,6 +23,7 @@ export default function MembersPage() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
     const loadMembers = async () => {
@@ -68,7 +69,12 @@ export default function MembersPage() {
     }
 
     setInviteCode(data as string);
+    setInviteOpen(true);
     setInviteLoading(false);
+
+    window.setTimeout(() => {
+      setInviteOpen(false);
+    }, 30000);
   };
 
   const copyInviteCode = async () => {
@@ -77,6 +83,7 @@ export default function MembersPage() {
     }
 
     await navigator.clipboard.writeText(inviteCode);
+    setInviteOpen(false);
   };
 
   return (
@@ -89,31 +96,30 @@ export default function MembersPage() {
       </div>
 
       {activeBusinessRole === "owner" ? (
-        <Card className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-2xl bg-[color:var(--accent-soft)] p-2 text-[color:var(--accent)]">
-              <Sparkles className="h-4 w-4" />
+        <Card className="p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl bg-[color:var(--accent-soft)] p-2 text-[color:var(--accent)]">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <p className="text-sm font-semibold text-[color:var(--ink)]">Invite a team member</p>
             </div>
-            <div>
-              <h2 className="font-semibold text-[color:var(--ink)]">Generate an invite code</h2>
-              <p className="mt-1 text-sm text-[color:var(--muted)]">Share this with a new teammate to add them to this business.</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button onClick={handleGenerateInvite} disabled={inviteLoading} icon={inviteLoading ? LoaderCircle : Sparkles}>
-              {inviteLoading ? "Generating..." : "Generate Invite Code"}
+            <Button onClick={handleGenerateInvite} disabled={inviteLoading} icon={inviteLoading ? LoaderCircle : Sparkles} className="px-3 py-2 text-xs">
+              {inviteLoading ? "Generating..." : "Generate Code"}
             </Button>
-            {inviteCode ? (
-              <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--cream)]/70 px-3 py-2">
+          </div>
+          {inviteOpen && inviteCode ? (
+            <div className="mt-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--cream)]/70 p-3">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-sm font-semibold tracking-[0.24em] text-[color:var(--ink)]">{inviteCode}</span>
                 <button type="button" onClick={copyInviteCode} className="rounded-full p-1.5 text-[color:var(--muted)] hover:bg-[color:var(--surface)]" aria-label="Copy invite code">
                   <Copy className="h-4 w-4" />
                 </button>
               </div>
-            ) : null}
-          </div>
-          <p className="text-sm text-[color:var(--muted)]">The code expires in 7 days.</p>
-          {inviteError ? <p className="text-sm text-[color:var(--danger)]">{inviteError}</p> : null}
+              <p className="mt-2 text-xs text-[color:var(--muted)]">The code expires in 7 days.</p>
+            </div>
+          ) : null}
+          {inviteError ? <p className="mt-2 text-sm text-[color:var(--danger)]">{inviteError}</p> : null}
         </Card>
       ) : null}
 

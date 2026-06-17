@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BellRing, CheckCircle2, MessageCircle, Plus, Sparkles, XCircle } from "lucide-react";
+import { BellRing, CheckCircle2, Clock3, MessageCircle, Plus, Sparkles, XCircle } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
 import ReminderModal from "@/components/phase4/reminder-modal";
 import Badge from "@/components/ui/Badge";
@@ -144,25 +144,35 @@ export default function RemindersPage() {
   };
 
   const renderReminderRows = (items: Reminder[]) => (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {items.map((reminder) => (
-        <Card key={reminder.id} className="space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[color:var(--ink)]">{reminder.shop_name ?? "Unknown shop"}</p>
-              <p className="mt-1 text-sm text-[color:var(--muted)]">{reminder.title}</p>
-              <p className="mt-1 text-sm text-[color:var(--muted)]/80">{reminder.message}</p>
+        <Card key={reminder.id} className="p-3">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <Badge variant={getBadgeVariant(reminder.type)}>{reminder.type}</Badge>
+                <p className="truncate text-sm font-semibold text-[color:var(--ink)]">{reminder.shop_name ?? "Unknown shop"}</p>
+              </div>
+              <p className="mt-1 line-clamp-1 text-sm text-[color:var(--muted)]">{reminder.title}</p>
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-[color:var(--muted)]">
+                <Clock3 className="h-3.5 w-3.5" />
+                Due {reminder.due_date}
+              </p>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <Badge variant={getBadgeVariant(reminder.type)}>{reminder.type}</Badge>
-              <span className="text-sm text-[color:var(--muted)]">Due {reminder.due_date}</span>
+            <div className="flex items-center gap-1">
+              <button type="button" aria-label="WhatsApp reminder" title="WhatsApp" onClick={() => openWhatsApp(reminder.shop_phone ?? null, reminder.message)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--ink)]">
+                <MessageCircle className="h-4 w-4" />
+              </button>
+              <button type="button" aria-label="Mark done" title="Mark done" onClick={() => void updateReminder(reminder.id, { status: "done", completed_at: new Date().toISOString() })} className="flex h-8 w-8 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--success)]">
+                <CheckCircle2 className="h-4 w-4" />
+              </button>
+              <button type="button" aria-label="Dismiss reminder" title="Dismiss" onClick={() => void updateReminder(reminder.id, { status: "dismissed" })} className="flex h-8 w-8 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--muted)]">
+                <XCircle className="h-4 w-4" />
+              </button>
+              <button type="button" aria-label="Snooze reminder" title="Snooze 3 days" onClick={() => void updateReminder(reminder.id, { due_date: new Date(new Date(reminder.due_date).getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) })} className="flex h-8 w-8 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--ink)]">
+                <Clock3 className="h-4 w-4" />
+              </button>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => void updateReminder(reminder.id, { status: "done", completed_at: new Date().toISOString() })} icon={CheckCircle2}>Mark Done</Button>
-            <Button variant="ghost" onClick={() => void updateReminder(reminder.id, { status: "dismissed" })} icon={XCircle}>Dismiss</Button>
-            <Button variant="outline" onClick={() => void updateReminder(reminder.id, { due_date: new Date(new Date(reminder.due_date).getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) })}>Snooze 3 days</Button>
-            <Button variant="secondary" onClick={() => openWhatsApp(reminder.shop_phone ?? null, reminder.message)} icon={MessageCircle}>WhatsApp</Button>
           </div>
         </Card>
       ))}
@@ -198,36 +208,40 @@ export default function RemindersPage() {
         <section>
           <div className="mb-3 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-[color:var(--accent)]" />
-            <h2 className="text-lg font-semibold text-[color:var(--ink)]">Upcoming</h2>
-          </div>
-          {loading ? <div className="space-y-3"><Skeleton className="h-28" /></div> : upcoming.length === 0 ? <EmptyState icon={Sparkles} title="No upcoming nudges" description="Nothing is scheduled in the next 14 days." /> : renderReminderRows(upcoming)}
-        </section>
-
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-[color:var(--accent)]" />
             <h2 className="text-lg font-semibold text-[color:var(--ink)]">Suggested</h2>
           </div>
           {loading ? <div className="space-y-3"><Skeleton className="h-24" /><Skeleton className="h-24" /></div> : suggestions.length === 0 ? <EmptyState icon={Sparkles} title="No suggestions right now" description="Once a shop needs attention, smart follow-up ideas will appear here." /> : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {suggestions.map((suggestion) => (
-                <Card key={`${suggestion.shop_id}-${suggestion.type}`} className="space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[color:var(--ink)]">{suggestion.shop_name}</p>
+                <Card key={`${suggestion.shop_id}-${suggestion.type}`} className="p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={suggestion.type === "payment" ? "warning" : "success"}>{suggestion.type}</Badge>
+                        <p className="truncate text-sm font-semibold text-[color:var(--ink)]">{suggestion.shop_name}</p>
+                      </div>
                       <p className="mt-1 text-sm text-[color:var(--muted)]">{suggestion.reason}</p>
-                      <p className="mt-2 text-sm text-[color:var(--muted)]/80">{suggestion.suggested_message}</p>
                     </div>
-                    <Badge variant={suggestion.type === "payment" ? "warning" : "success"}>{suggestion.type}</Badge>
+                    <button type="button" aria-label="WhatsApp suggestion" title="WhatsApp" onClick={() => openWhatsApp(suggestion.shop_phone, suggestion.suggested_message)} className="flex h-8 w-8 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--ink)]">
+                      <MessageCircle className="h-4 w-4" />
+                    </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => void handleCreate({ shop_id: suggestion.shop_id, type: suggestion.type, title: suggestion.type === "payment" ? "Payment reminder" : "Restock reminder", message: suggestion.suggested_message, due_date: new Date().toISOString().slice(0, 10) })}>Add as Reminder</Button>
-                    <Button variant="secondary" onClick={() => openWhatsApp(suggestion.shop_phone, suggestion.suggested_message)} icon={MessageCircle}>WhatsApp</Button>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-xs text-[color:var(--muted)]">{suggestion.suggested_message}</p>
+                    <Button variant="outline" onClick={() => void handleCreate({ shop_id: suggestion.shop_id, type: suggestion.type, title: suggestion.type === "payment" ? "Payment reminder" : "Restock reminder", message: suggestion.suggested_message, due_date: new Date().toISOString().slice(0, 10) })}>Add</Button>
                   </div>
                 </Card>
               ))}
             </div>
           )}
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-[color:var(--accent)]" />
+            <h2 className="text-lg font-semibold text-[color:var(--ink)]">Upcoming</h2>
+          </div>
+          {loading ? <div className="space-y-3"><Skeleton className="h-28" /></div> : upcoming.length === 0 ? <EmptyState icon={Sparkles} title="No upcoming nudges" description="Nothing is scheduled in the next 14 days." /> : renderReminderRows(upcoming)}
         </section>
 
         <section>

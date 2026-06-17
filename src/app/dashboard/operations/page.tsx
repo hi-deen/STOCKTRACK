@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, ClipboardList, Search, Store, Truck, Wallet, Camera, CircleDollarSign, PackageCheck, Filter, ArrowRight, Plus, BadgeCheck, AlertTriangle, CloudOff, Clock3, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Store, Truck, Wallet, Camera, PackageCheck, Plus, CloudOff, Clock3, RefreshCw, CheckCircle2, Package } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
 import ShopProfileModal from "@/components/modals/ShopProfileModal";
 import DeliveryModal from "@/components/phase3/delivery-modal";
@@ -329,8 +329,8 @@ export default function OperationsPage() {
 
   const summary = useMemo(() => {
     const visitedCount = rows.filter((row) => row.restocked_today || row.payments_today_total > 0).length;
-    const totalDelivered = rows.reduce((sum, row) => sum + Number(row.balance > 0 ? 0 : 0), 0);
     const totalCollected = rows.reduce((sum, row) => sum + Number(row.payments_today_total ?? 0), 0);
+    const totalDelivered = rows.reduce((sum, row) => sum + (row.restocked_today ? Math.max(0, Number(row.balance ?? 0)) : 0), 0);
     return {
       visitedCount,
       totalCount: rows.length,
@@ -690,22 +690,58 @@ export default function OperationsPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-[color:var(--border)] bg-[color:var(--surface)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">Operations</p>
-            <h1 className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-semibold text-[color:var(--ink)]">Daily field work at a glance</h1>
-            <p className="mt-2 max-w-2xl text-sm text-[color:var(--muted)]">Restock, collect payments, and keep each shop moving with the most urgent visits first.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => { setEditingShop(null); setShopModalOpen(true); }} icon={Plus}>Add Shop</Button>
-            <Button variant="outline" href="/dashboard/product-delivery">Open Product Delivery</Button>
-            <Button variant="outline" onClick={handleSyncNow} disabled={syncing}>
-              {syncing ? "Syncing..." : "Sync now"}
-            </Button>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-base font-semibold text-[color:var(--ink)]">Operations</h1>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label="Add shop"
+              title="Add shop"
+              onClick={() => { setEditingShop(null); setShopModalOpen(true); }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Open product delivery"
+              title="Open product delivery"
+              onClick={() => window.location.assign("/dashboard/product-delivery")}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]"
+            >
+              <Truck className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Sync now"
+              title="Sync now"
+              onClick={handleSyncNow}
+              disabled={syncing}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--ink)] transition hover:bg-[color:var(--cream)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+            </button>
           </div>
         </div>
-      </Card>
+        <div className="flex gap-2">
+          <div className="flex flex-1 items-center gap-1.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1.5 text-xs text-[color:var(--muted)]">
+            <CheckCircle2 className="h-3.5 w-3.5 text-[color:var(--success)]" />
+            <span className="font-semibold text-[color:var(--ink)]">{summary.visitedCount}/{summary.totalCount}</span>
+            <span>Visited</span>
+          </div>
+          <div className="flex flex-1 items-center gap-1.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1.5 text-xs text-[color:var(--muted)]">
+            <Wallet className="h-3.5 w-3.5 text-[color:var(--primary)]" />
+            <span className="font-semibold text-[color:var(--ink)]">{formatCurrency(summary.totalCollectedToday)}</span>
+            <span>Collected</span>
+          </div>
+          <div className="flex flex-1 items-center gap-1.5 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-1.5 text-xs text-[color:var(--muted)]">
+            <Package className="h-3.5 w-3.5 text-[color:var(--accent)]" />
+            <span className="font-semibold text-[color:var(--ink)]">{formatCurrency(summary.totalDeliveredToday)}</span>
+            <span>Delivered</span>
+          </div>
+        </div>
+      </div>
 
       {error ? <div className="rounded-[1.35rem] border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]/70 p-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
       {success ? <div className="rounded-[1.35rem] border border-[color:var(--success-soft)] bg-[color:var(--success-soft)]/70 p-3 text-sm text-[color:var(--success)]">{success}</div> : null}
@@ -770,24 +806,6 @@ export default function OperationsPage() {
           </div>
         </div>
       ) : null}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border border-[color:var(--border)] bg-[color:var(--surface)]">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ink)]"><ClipboardList className="h-4 w-4 text-[color:var(--primary)]" /> Visits today</div>
-          <div className="mt-3 text-3xl font-semibold text-[color:var(--ink)]">{summary.visitedCount} / {summary.totalCount}</div>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">Shops with a restock or payment entry today.</p>
-        </Card>
-        <Card className="border border-[color:var(--border)] bg-[color:var(--surface)]">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ink)]"><CircleDollarSign className="h-4 w-4 text-[color:var(--primary)]" /> Collected today</div>
-          <div className="mt-3 text-3xl font-semibold text-[color:var(--ink)]">{formatCurrency(summary.totalCollectedToday)}</div>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">Payments captured for today’s visits.</p>
-        </Card>
-        <Card className="border border-[color:var(--border)] bg-[color:var(--surface)]">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ink)]"><Truck className="h-4 w-4 text-[color:var(--primary)]" /> Delivered today</div>
-          <div className="mt-3 text-3xl font-semibold text-[color:var(--ink)]">{formatCurrency(summary.totalDeliveredToday)}</div>
-          <p className="mt-2 text-sm text-[color:var(--muted)]">Total stock value logged today.</p>
-        </Card>
-      </div>
 
       <Card padded={false} className="p-3">
         <div className="flex items-center gap-2 rounded-[1rem] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2">

@@ -21,17 +21,17 @@ const toneClasses: Record<NonNullable<StatTileProps["tone"]>, string> = {
 
 export default function StatTile({ icon: Icon, label, value, tone = "primary", trend }: StatTileProps) {
   return (
-    <div className="rounded-[1.35rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow-[0_12px_40px_-24px_rgba(43,36,32,0.45)]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-[color:var(--muted)]">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-[color:var(--ink)]">{value}</p>
+    <div className="rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-3 shadow-[0_10px_30px_-22px_rgba(43,36,32,0.45)]">
+      <div className="flex items-start gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${toneClasses[tone]}`}>
+          <Icon className="h-4.5 w-4.5" />
         </div>
-        <div className={`rounded-2xl p-3 ${toneClasses[tone]}`}>
-          <Icon className="h-5 w-5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-[color:var(--muted)]">{label}</p>
+          <p className="mt-1 text-xl font-semibold text-[color:var(--ink)]">{value}</p>
         </div>
       </div>
-      {trend ? <div className="mt-4 text-sm text-[color:var(--muted)]">{trend}</div> : null}
+      {trend ? <div className="mt-2 text-xs text-[color:var(--muted)]">{trend}</div> : null}
     </div>
   );
 }

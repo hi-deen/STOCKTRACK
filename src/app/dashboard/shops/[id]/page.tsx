@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, BellRing, CheckCircle2, PencilLine, Plus, Wallet } from "lucide-react";
+import { ArrowLeft, BellRing, CheckCircle2, PencilLine, Plus, Wallet, Package, Receipt } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
 import ShopFormModal from "@/components/phase2/shop-form-modal";
 import DeliveryModal from "@/components/phase3/delivery-modal";
@@ -40,6 +40,7 @@ export default function ShopDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
+  const [activeTab, setActiveTab] = useState<"deliveries" | "payments" | "reminders">("deliveries");
 
   const loadShop = async () => {
     const supabase = createClient();
@@ -261,54 +262,25 @@ export default function ShopDetailPage() {
             <p><span className="font-semibold text-[color:var(--ink)]">Area:</span> {shop.area || "—"}</p>
             <p><span className="font-semibold text-[color:var(--ink)]">Address:</span> {shop.address || "—"}</p>
           </div>
-          <div className="space-y-4">
+          <div>
             <div className={`rounded-[1.2rem] border p-4 ${balanceCardClass}`}>
               <p className="text-sm font-semibold uppercase tracking-[0.24em]">Outstanding balance</p>
               <p className="mt-2 text-3xl font-semibold">{formatCurrency(balance)}</p>
               <p className="mt-2 text-sm">{balance > 0 ? "This shop still owes you." : "No outstanding balance."}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => setDeliveryModalOpen(true)} icon={Plus}>Record Delivery</Button>
-              <Button variant="outline" onClick={() => setPaymentModalOpen(true)}>Record Payment</Button>
-              <Button variant="outline" onClick={() => setReminderModalOpen(true)} icon={BellRing}>Add Reminder</Button>
             </div>
           </div>
         </div>
       </Card>
 
       <Card>
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-[color:var(--ink)]">Reminders</h2>
-          <Button variant="outline" onClick={() => setReminderModalOpen(true)}>Add Reminder</Button>
+        <div className="flex gap-2 rounded-[1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/50 p-1">
+          <button type="button" onClick={() => setActiveTab("deliveries")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-[0.8rem] px-3 py-2 text-sm font-semibold ${activeTab === "deliveries" ? "bg-[color:var(--surface)] text-[color:var(--ink)]" : "text-[color:var(--muted)]"}`}><Package className="h-4 w-4" /> Deliveries</button>
+          <button type="button" onClick={() => setActiveTab("payments")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-[0.8rem] px-3 py-2 text-sm font-semibold ${activeTab === "payments" ? "bg-[color:var(--surface)] text-[color:var(--ink)]" : "text-[color:var(--muted)]"}`}><Wallet className="h-4 w-4" /> Payments</button>
+          <button type="button" onClick={() => setActiveTab("reminders")} className={`flex flex-1 items-center justify-center gap-1.5 rounded-[0.8rem] px-3 py-2 text-sm font-semibold ${activeTab === "reminders" ? "bg-[color:var(--surface)] text-[color:var(--ink)]" : "text-[color:var(--muted)]"}`}><BellRing className="h-4 w-4" /> Reminders</button>
         </div>
-        {reminders.length === 0 ? (
-          <div className="mt-4"><EmptyState icon={BellRing} title="No pending reminders" description="This shop is all caught up for now." /></div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {reminders.map((reminder) => (
-              <div key={reminder.id} className="rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/40 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-[color:var(--ink)]">{reminder.title}</p>
-                    <p className="mt-1 text-sm text-[color:var(--muted)]">{reminder.message}</p>
-                  </div>
-                  <Badge variant={reminder.type === "payment" ? "warning" : "info"}>{reminder.type}</Badge>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={() => void updateReminder(reminder.id, { status: "done", completed_at: new Date().toISOString() })} icon={CheckCircle2}>Mark Done</Button>
-                  <Button variant="ghost" onClick={() => void updateReminder(reminder.id, { status: "dismissed" })}>Dismiss</Button>
-                  <Button variant="outline" onClick={() => void updateReminder(reminder.id, { due_date: new Date(new Date(reminder.due_date).getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) })}>Snooze 3 days</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <h2 className="text-lg font-semibold text-[color:var(--ink)]">Stock History</h2>
-          {deliveries.length === 0 ? (
+        {activeTab === "deliveries" ? (
+          deliveries.length === 0 ? (
             <div className="mt-4"><EmptyState icon={Wallet} title="No deliveries yet" description="This shop has no stock history recorded yet." /></div>
           ) : (
             <div className="mt-4 overflow-hidden rounded-[1rem] border border-[color:var(--border)]">
@@ -333,11 +305,11 @@ export default function ShopDetailPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </Card>
-        <Card>
-          <h2 className="text-lg font-semibold text-[color:var(--ink)]">Payment History</h2>
-          {payments.length === 0 ? (
+          )
+        ) : null}
+
+        {activeTab === "payments" ? (
+          payments.length === 0 ? (
             <div className="mt-4"><EmptyState icon={Wallet} title="No payments yet" description="This shop has no payment history uploaded yet." /></div>
           ) : (
             <div className="mt-4 overflow-hidden rounded-[1rem] border border-[color:var(--border)]">
@@ -360,8 +332,38 @@ export default function ShopDetailPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </Card>
+          )
+        ) : null}
+
+        {activeTab === "reminders" ? (
+          reminders.length === 0 ? (
+            <div className="mt-4"><EmptyState icon={BellRing} title="No pending reminders" description="This shop is all caught up for now." /></div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {reminders.map((reminder) => (
+                <div key={reminder.id} className="rounded-[1.1rem] border border-[color:var(--border)] bg-[color:var(--cream)]/40 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[color:var(--ink)]">{reminder.title}</p>
+                      <p className="mt-1 text-sm text-[color:var(--muted)]">{reminder.message}</p>
+                    </div>
+                    <Badge variant={reminder.type === "payment" ? "warning" : "info"}>{reminder.type}</Badge>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => void updateReminder(reminder.id, { status: "done", completed_at: new Date().toISOString() })} icon={CheckCircle2}>Mark Done</Button>
+                    <Button variant="ghost" onClick={() => void updateReminder(reminder.id, { status: "dismissed" })}>Dismiss</Button>
+                    <Button variant="outline" onClick={() => void updateReminder(reminder.id, { due_date: new Date(new Date(reminder.due_date).getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) })}>Snooze 3 days</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : null}
+      </Card>
+
+      <div className="sticky bottom-16 z-30 mt-4 flex gap-2 rounded-[1rem] border border-[color:var(--border)] bg-[color:var(--surface)]/95 p-2 shadow-lg backdrop-blur">
+        <Button onClick={() => setDeliveryModalOpen(true)} icon={Plus} className="flex-1">Record Delivery</Button>
+        <Button variant="outline" onClick={() => setPaymentModalOpen(true)} className="flex-1">Record Payment</Button>
       </div>
 
       <ShopFormModal open={modalOpen} mode="edit" shop={shop} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleUpdate} submitting={submitting} error={error} success={success} />
