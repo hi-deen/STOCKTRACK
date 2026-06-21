@@ -1,3 +1,5 @@
+drop function if exists public.get_operations_view(uuid);
+
 create or replace function public.get_operations_view(business_id_input uuid)
 returns table (
   shop_id uuid,
