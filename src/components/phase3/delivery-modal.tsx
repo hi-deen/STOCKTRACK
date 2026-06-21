@@ -68,16 +68,6 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
   }, [shopQuery, shops]);
 
   const selectedProduct = useMemo(() => products.find((product) => product.id === selectedProductId) ?? null, [products, selectedProductId]);
-  const matchedShopProduct = useMemo(() => {
-    if (!selectedShopId || !selectedProductId) {
-      return null;
-    }
-
-    return shopProductRows.find((entry) => entry.shop_id === selectedShopId && entry.product_id === selectedProductId) ?? null;
-  }, [selectedShopId, selectedProductId, shopProductRows]);
-  const matchedUsualQuantity = matchedShopProduct?.usual_quantity != null && Number(matchedShopProduct.usual_quantity) > 0
-    ? String(matchedShopProduct.usual_quantity)
-    : "no match";
   const totalAmount = Number(quantity || 0) * Number(unitPrice || 0);
 
   useEffect(() => {
@@ -221,9 +211,6 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Delivery Date</label>
                 <input required type="date" value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              </div>
-              <div className="md:col-span-2">
-                <p className="mb-1 text-[11px] text-slate-400">TEMP DEBUG — shop_id: {selectedShopId || "(none)"} | selected product_id: {selectedProductId || "(none)"} | shop_products loaded: {JSON.stringify(shopProductRows)} | matched usual_quantity: {matchedUsualQuantity}</p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Quantity</label>
