@@ -25,6 +25,7 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
   const [unitPrice, setUnitPrice] = useState("");
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [shopProductRows, setShopProductRows] = useState<Array<{ shop_id: string; product_id: string; usual_quantity: number | null }>>([]);
 
   useEffect(() => {
     if (!open) {
@@ -42,6 +43,7 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
     setUnitPrice(initialProduct?.unit_price?.toString() ?? "");
     setDeliveryDate(today);
     setNotes("");
+    setShopProductRows([]);
   }, [open, shops, products, defaultShopId, defaultProductId]);
 
   useEffect(() => {
@@ -76,12 +78,12 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
   }, [selectedProduct]);
 
   useEffect(() => {
-    if (!open || !selectedShopId || !selectedProductId) {
+    if (!open || !selectedShopId) {
       return;
     }
 
     let isActive = true;
-    const loadUsualQuantity = async () => {
+    const loadShopProducts = async () => {
       const supabase = createClient();
       if (!supabase) {
         return;
@@ -89,23 +91,26 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
 
       const { data, error } = await supabase
         .from("shop_products")
-        .select("usual_quantity")
-        .eq("shop_id", selectedShopId)
-        .eq("product_id", selectedProductId)
-        .maybeSingle();
+        .select("shop_id, product_id, usual_quantity")
+        .eq("shop_id", selectedShopId);
 
       if (!isActive || error) {
         return;
       }
 
-      if (data?.usual_quantity != null && Number(data.usual_quantity) > 0) {
-        setQuantity(String(data.usual_quantity));
-      } else {
-        setQuantity("1");
+      setShopProductRows((data ?? []) as Array<{ shop_id: string; product_id: string; usual_quantity: number | null }>);
+
+      if (selectedProductId) {
+        const currentMatch = (data ?? []).find((entry) => entry.product_id === selectedProductId);
+        if (currentMatch && currentMatch.usual_quantity != null && Number(currentMatch.usual_quantity) > 0) {
+          setQuantity(String(currentMatch.usual_quantity));
+        } else {
+          setQuantity("1");
+        }
       }
     };
 
-    void loadUsualQuantity();
+    void loadShopProducts();
 
     return () => {
       isActive = false;
@@ -184,8 +189,16 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Product</label>
                 <select required value={selectedProductId} onChange={(event) => {
-                  setSelectedProductId(event.target.value);
-                  setQuantity("1");
+                  const nextProductId = event.target.value;
+                  const match = shopProductRows.find((entry) => entry.product_id === nextProductId);
+                  const nextUsualQuantity = match?.usual_quantity;
+
+                  setSelectedProductId(nextProductId);
+                  if (nextUsualQuantity != null && Number(nextUsualQuantity) > 0) {
+                    setQuantity(String(nextUsualQuantity));
+                  } else {
+                    setQuantity("1");
+                  }
                 }} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                   <option value="">Select product</option>
                   {products.map((product) => (
