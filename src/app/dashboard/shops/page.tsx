@@ -12,11 +12,13 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
 import { createClient } from "@/lib/supabase/client";
-import type { Shop } from "@/types/phase2";
+import type { Product, Shop } from "@/types/phase2";
 
 export default function ShopsPage() {
   const { activeBusinessId, loading: businessLoading } = useBusiness();
   const [shops, setShops] = useState<Shop[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [shopProducts, setShopProducts] = useState<Array<{ shop_id: string; product_id: string; usual_quantity: number | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -36,15 +38,21 @@ export default function ShopsPage() {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false });
+    const [shopsRes, productsRes, shopProductsRes] = await Promise.all([
+      supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false }),
+      supabase.from("products").select("*").eq("business_id", activeBusinessId).order("name"),
+      supabase.from("shop_products").select("*")
+    ]);
 
-    if (error) {
-      setError(error.message);
+    if (shopsRes.error || productsRes.error || shopProductsRes.error) {
+      setError((shopsRes.error ?? productsRes.error ?? shopProductsRes.error)?.message ?? "Unable to load shops.");
       setLoading(false);
       return;
     }
 
-    setShops((data ?? []) as Shop[]);
+    setShops((shopsRes.data ?? []) as Shop[]);
+    setProducts((productsRes.data ?? []) as Product[]);
+    setShopProducts((shopProductsRes.data ?? []) as Array<{ shop_id: string; product_id: string; usual_quantity: number | null }>);
     setLoading(false);
   };
 
@@ -119,7 +127,7 @@ export default function ShopsPage() {
     return shops.filter((shop) => [shop.name, shop.area ?? "", shop.owner_name ?? ""].some((value) => value.toLowerCase().includes(normalizedQuery)));
   }, [query, shops]);
 
-  const handleCreateOrUpdate = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => {
+  const handleCreateOrUpdate = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean; usualQuantities: Record<string, string> }) => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId) {
       setError("Select a business first.");
@@ -184,6 +192,8 @@ export default function ShopsPage() {
           setWarning("The shop was updated, but the photo path could not be saved.");
         }
       }
+
+      await saveUsualQuantities(editingShop.id, payload.usualQuantities);
     } else {
       const { data: insertedShop, error: insertError } = await supabase.from("shops").insert({ business_id: activeBusinessId, ...shopPayload }).select().single();
 
@@ -192,6 +202,8 @@ export default function ShopsPage() {
         setSubmitting(false);
         return;
       }
+
+      await saveUsualQuantities(insertedShop.id, payload.usualQuantities);
 
       if (payload.photoFile) {
         try {
@@ -218,6 +230,34 @@ export default function ShopsPage() {
     setModalOpen(false);
     setEditingShop(null);
     await loadShops();
+  };
+
+  const saveUsualQuantities = async (shopId: string, usualQuantities: Record<string, string>) => {
+    const supabase = createClient();
+    if (!supabase) {
+      return;
+    }
+
+    const entries = Object.entries(usualQuantities).filter(([, value]) => value.trim() !== "");
+    const validEntries = entries.filter(([, value]) => !Number.isNaN(Number(value)));
+
+    await Promise.all(
+      validEntries.map(async ([productId, value]) => {
+        await supabase.from("shop_products").upsert({
+          shop_id: shopId,
+          product_id: productId,
+          usual_quantity: Number(value),
+        }, { onConflict: "shop_id,product_id" });
+      })
+    );
+
+    const currentProductIds = new Set(validEntries.map(([productId]) => productId));
+    const rowsToDelete = products.filter((product) => !currentProductIds.has(product.id)).map((product) => product.id);
+    await Promise.all(
+      rowsToDelete.map(async (productId) => {
+        await supabase.from("shop_products").delete().eq("shop_id", shopId).eq("product_id", productId);
+      })
+    );
   };
 
   const toggleActive = async (shop: Shop) => {
@@ -339,7 +379,22 @@ export default function ShopsPage() {
         </>
       )}
 
-      <ShopFormModal open={modalOpen} mode={editingShop ? "edit" : "create"} shop={editingShop} onClose={() => { setModalOpen(false); setEditingShop(null); setError(null); setSuccess(null); }} onSubmit={handleCreateOrUpdate} submitting={submitting} error={error} success={success} />
+      <ShopFormModal
+        open={modalOpen}
+        mode={editingShop ? "edit" : "create"}
+        shop={editingShop}
+        products={products}
+        shopProductDefaults={Object.fromEntries(
+          shopProducts
+            .filter((entry) => entry.shop_id === editingShop?.id)
+            .map((entry) => [entry.product_id, entry.usual_quantity?.toString() ?? ""])
+        )}
+        onClose={() => { setModalOpen(false); setEditingShop(null); setError(null); setSuccess(null); }}
+        onSubmit={handleCreateOrUpdate}
+        submitting={submitting}
+        error={error}
+        success={success}
+      />
     </div>
   );
 }

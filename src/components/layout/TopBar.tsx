@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, MoreVertical, Package, Store, Copy, LoaderCircle, Plus, Users, ShieldCheck, LogOut } from "lucide-react";
+import { ChevronDown, MoreVertical, Package, Store, Copy, LoaderCircle, Plus, Users, ShieldCheck, LogOut, Truck } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
@@ -161,6 +161,10 @@ export default function TopBar() {
                 <Link href="/dashboard/payments" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>
                   <ShieldCheck className="mr-2 h-4 w-4" />
                   Payments
+                </Link>
+                <Link href="/dashboard/dispatch" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>
+                  <Truck className="mr-2 h-4 w-4" />
+                  Dispatch Riders
                 </Link>
                 <div className="my-2 h-px bg-[color:var(--border)]" />
                 <Link href="/dashboard/members" className="flex items-center rounded-xl px-3 py-2 text-sm text-[color:var(--ink)] transition hover:bg-[color:var(--cream)]" onClick={() => setMenuOpen(false)}>

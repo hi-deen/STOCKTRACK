@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Shop } from "@/types/phase2";
+import type { Product, Shop } from "@/types/phase2";
 import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 
 type ShopFormModalProps = {
   open: boolean;
   mode: "create" | "edit";
   shop?: Shop | null;
+  products?: Product[];
+  shopProductDefaults?: Record<string, string>;
   onClose: () => void;
-  onSubmit: (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean }) => Promise<void>;
+  onSubmit: (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string; photoFile?: File | null; removePhoto?: boolean; usualQuantities: Record<string, string> }) => Promise<void>;
   submitting: boolean;
   error: string | null;
   success: string | null;
   warning?: string | null;
 };
 
-export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, submitting, error, success, warning }: ShopFormModalProps) {
+export default function ShopFormModal({ open, mode, shop, products = [], shopProductDefaults = {}, onClose, onSubmit, submitting, error, success, warning }: ShopFormModalProps) {
   const [name, setName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
@@ -26,9 +28,12 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
+  const [showUsualOrder, setShowUsualOrder] = useState(false);
+  const [usualQuantities, setUsualQuantities] = useState<Record<string, string>>({});
   const existingPhotoUrl = useSignedPhotoUrl(shop?.photo_path ?? null);
 
   const previewUrl = useMemo(() => photoPreviewUrl ?? existingPhotoUrl ?? null, [photoPreviewUrl, existingPhotoUrl]);
+  const activeProducts = useMemo(() => products.filter((product) => product.is_active), [products]);
 
   useEffect(() => {
     if (open) {
@@ -41,8 +46,10 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
       setPhotoFile(null);
       setPhotoPreviewUrl(null);
       setRemovePhoto(false);
+      setShowUsualOrder(false);
+      setUsualQuantities(shopProductDefaults);
     }
-  }, [open, shop]);
+  }, [open, shop, shopProductDefaults]);
 
   useEffect(() => {
     if (!open) {
@@ -83,6 +90,7 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
       notes: notes.trim(),
       photoFile,
       removePhoto,
+      usualQuantities,
     });
   };
 
@@ -135,6 +143,34 @@ export default function ShopFormModal({ open, mode, shop, onClose, onSubmit, sub
                 <button type="button" onClick={() => { setRemovePhoto(true); setPhotoFile(null); setPhotoPreviewUrl(null); }} className="mt-2 text-sm font-semibold text-rose-600">
                   Remove photo
                 </button>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <button type="button" onClick={() => setShowUsualOrder((current) => !current)} className="flex w-full items-center justify-between text-sm font-semibold text-slate-800">
+                <span>Usual Order (optional)</span>
+                <span>{showUsualOrder ? "Hide" : "Show"}</span>
+              </button>
+              {showUsualOrder ? (
+                <div className="mt-3 space-y-2">
+                  {activeProducts.length === 0 ? (
+                    <p className="text-sm text-slate-500">No active products yet. Add products first to set usual quantities.</p>
+                  ) : (
+                    activeProducts.map((product) => (
+                      <div key={product.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2">
+                        <span className="flex-1 text-sm text-slate-700">{product.name} ({product.unit})</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={usualQuantities[product.id] ?? ""}
+                          onChange={(event) => setUsualQuantities((current) => ({ ...current, [product.id]: event.target.value }))}
+                          placeholder="0"
+                          className="w-24 rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
               ) : null}
             </div>
             <div>
