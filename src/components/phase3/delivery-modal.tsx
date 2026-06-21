@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Product, Shop } from "@/types/phase2";
+import { createClient } from "@/lib/supabase/client";
 
 type DeliveryModalProps = {
   open: boolean;
@@ -74,6 +75,43 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
     setUnitPrice((selectedProduct.unit_price ?? 0).toString());
   }, [selectedProduct]);
 
+  useEffect(() => {
+    if (!open || !selectedShopId || !selectedProductId) {
+      return;
+    }
+
+    let isActive = true;
+    const loadUsualQuantity = async () => {
+      const supabase = createClient();
+      if (!supabase) {
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("shop_products")
+        .select("usual_quantity")
+        .eq("shop_id", selectedShopId)
+        .eq("product_id", selectedProductId)
+        .maybeSingle();
+
+      if (!isActive || error) {
+        return;
+      }
+
+      if (data?.usual_quantity != null && Number(data.usual_quantity) > 0) {
+        setQuantity(String(data.usual_quantity));
+      } else {
+        setQuantity("1");
+      }
+    };
+
+    void loadUsualQuantity();
+
+    return () => {
+      isActive = false;
+    };
+  }, [open, selectedShopId, selectedProductId]);
+
   if (!open) {
     return null;
   }
@@ -145,7 +183,10 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Product</label>
-                <select required value={selectedProductId} onChange={(event) => setSelectedProductId(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <select required value={selectedProductId} onChange={(event) => {
+                  setSelectedProductId(event.target.value);
+                  setQuantity("1");
+                }} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                   <option value="">Select product</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>

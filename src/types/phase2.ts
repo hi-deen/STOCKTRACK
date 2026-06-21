@@ -38,6 +38,7 @@ export type ShopOperationsRow = {
   payments_today_total: number;
   payment_status_today: "none" | "partial" | "full";
   last_payment_method_today: string | null;
+  usual_order_summary: string | null;
 };
 
 export type StockDelivery = {

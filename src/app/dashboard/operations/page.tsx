@@ -848,6 +848,9 @@ export default function OperationsPage() {
                                 {pendingMutations.some((item) => item.payload.shop_id === row.shop_id && (item.status === "pending" || item.status === "syncing")) ? <Clock3 className="h-3.5 w-3.5 text-[color:var(--primary)]" /> : null}
                               </div>
                               <p className="mt-1 text-sm text-[color:var(--muted)]">{row.address || "No address on file"}</p>
+                              {row.usual_order_summary ? (
+                                <p className="mt-1 text-xs text-[color:var(--muted)]">Usually: {row.usual_order_summary}</p>
+                              ) : null}
                               <div className="mt-2 flex flex-wrap items-center gap-2">
                                 {row.restocked_today ? <Badge variant="success" className="gap-1"><PackageCheck className="h-3.5 w-3.5" /> Restocked today</Badge> : null}
                                 {row.payment_status_today === "partial" ? <Badge variant="warning">Partial payout</Badge> : null}
