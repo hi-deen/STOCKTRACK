@@ -34,7 +34,7 @@ begin
   insert into public.riders (phone, pin_hash, full_name, is_active)
   values (
     phone_input,
-    crypt(pin_input, gen_salt('bf')),
+    crypt(pin_input::text, gen_salt('bf'::text)),
     full_name_input,
     true
   )

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import type { Product, Shop } from "@/types/phase2";
 import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 
@@ -17,6 +17,39 @@ type ShopFormModalProps = {
   success: string | null;
   warning?: string | null;
 };
+
+type InputFieldProps = InputHTMLAttributes<HTMLInputElement> & { label: string };
+type TextareaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string };
+
+type FormFieldProps = {
+  label: string;
+  children: ReactNode;
+};
+
+function FormField({ label, children }: FormFieldProps) {
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function InputField({ label, className = "", ...props }: InputFieldProps) {
+  return (
+    <FormField label={label}>
+      <input {...props} className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm ${className}`.trim()} />
+    </FormField>
+  );
+}
+
+function TextareaField({ label, className = "", ...props }: TextareaFieldProps) {
+  return (
+    <FormField label={label}>
+      <textarea {...props} className={`h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm ${className}`.trim()} />
+    </FormField>
+  );
+}
 
 export default function ShopFormModal({ open, mode, shop, products = [], shopProductDefaults = {}, onClose, onSubmit, submitting, error, success, warning }: ShopFormModalProps) {
   const [name, setName] = useState("");
@@ -103,29 +136,14 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Shop Name</label>
-              <input required value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <InputField label="Shop Name" required value={name} onChange={(event) => setName(event.target.value)} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <InputField label="Owner Name" value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />
+              <InputField label="Phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Owner Name</label>
-                <input value={ownerName} onChange={(event) => setOwnerName(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Phone</label>
-                <input value={phone} onChange={(event) => setPhone(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Area</label>
-                <input value={area} onChange={(event) => setArea(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Address</label>
-                <input value={address} onChange={(event) => setAddress(event.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-              </div>
+              <InputField label="Area" value={area} onChange={(event) => setArea(event.target.value)} />
+              <InputField label="Address" value={address} onChange={(event) => setAddress(event.target.value)} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Photo <span className="text-xs text-slate-500">(optional)</span></label>
@@ -173,10 +191,7 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
                 </div>
               ) : null}
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Notes</label>
-              <textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-            </div>
+            <TextareaField label="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             {warning ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700">{warning}</p> : null}
             {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
