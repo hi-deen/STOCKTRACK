@@ -61,6 +61,11 @@ export default async function LoginPage({ searchParams }: { searchParams?: { err
             Create account
           </Link>
         </div>
+        <p className="text-center text-sm text-[color:var(--muted)]">
+          <Link href="/rider/login" className="font-semibold text-[color:var(--ink)]">
+            Are you a dispatch rider? Log in here
+          </Link>
+        </p>
       </div>
     </div>
   );

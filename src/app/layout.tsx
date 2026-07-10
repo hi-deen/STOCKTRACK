@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import PWARegister from "@/components/PWARegister";
 import UpdateAvailable from "@/components/UpdateAvailable";
+import { RiderAuthProvider } from "@/lib/rider/RiderAuthContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -41,7 +42,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <PWARegister />
         <UpdateAvailable />
-        {children}
+        <RiderAuthProvider>{children}</RiderAuthProvider>
       </body>
     </html>
   );
