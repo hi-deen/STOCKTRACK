@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { createClient } from "@/lib/supabase/client";
 import type { Product, Shop } from "@/types/phase2";
 import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 
@@ -52,17 +53,13 @@ function TextareaField({ label, className = "", ...props }: TextareaFieldProps) 
 }
 
 export default function ShopFormModal({ open, mode, shop, products = [], shopProductDefaults = {}, onClose, onSubmit, submitting, error, success, warning }: ShopFormModalProps) {
-  const [name, setName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [area, setArea] = useState("");
-  const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
+  const [formData, setFormData] = useState({ name: "", owner_name: "", phone: "", area: "", address: "", notes: "" });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [showUsualOrder, setShowUsualOrder] = useState(false);
   const [usualQuantities, setUsualQuantities] = useState<Record<string, string>>({});
+  const [existingAreas, setExistingAreas] = useState<string[]>([]);
   const existingPhotoUrl = useSignedPhotoUrl(shop?.photo_path ?? null);
 
   const previewUrl = useMemo(() => photoPreviewUrl ?? existingPhotoUrl ?? null, [photoPreviewUrl, existingPhotoUrl]);
@@ -70,12 +67,14 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
 
   useEffect(() => {
     if (open) {
-      setName(shop?.name ?? "");
-      setOwnerName(shop?.owner_name ?? "");
-      setPhone(shop?.phone ?? "");
-      setArea(shop?.area ?? "");
-      setAddress(shop?.address ?? "");
-      setNotes(shop?.notes ?? "");
+      setFormData({
+        name: shop?.name ?? "",
+        owner_name: shop?.owner_name ?? "",
+        phone: shop?.phone ?? "",
+        area: shop?.area ?? "",
+        address: shop?.address ?? "",
+        notes: shop?.notes ?? "",
+      });
       setPhotoFile(null);
       setPhotoPreviewUrl(null);
       setRemovePhoto(false);
@@ -83,6 +82,28 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
       setUsualQuantities(shopProductDefaults);
     }
   }, [open, shop, shopProductDefaults]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let isActive = true;
+    const loadAreas = async () => {
+      const supabase = createClient();
+      if (!supabase) return;
+
+      const { data, error } = await supabase.from("shops").select("area");
+      if (!isActive || error) return;
+
+      const areas = Array.from(new Set((data ?? []).map((r: any) => r.area).filter(Boolean)));
+      setExistingAreas(areas as string[]);
+    };
+
+    void loadAreas();
+
+    return () => {
+      isActive = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -115,12 +136,12 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     await onSubmit({
-      name: name.trim(),
-      owner_name: ownerName.trim(),
-      phone: phone.trim(),
-      area: area.trim(),
-      address: address.trim(),
-      notes: notes.trim(),
+      name: formData.name.trim(),
+      owner_name: formData.owner_name.trim(),
+      phone: formData.phone.trim(),
+      area: formData.area.trim(),
+      address: formData.address.trim(),
+      notes: formData.notes.trim(),
       photoFile,
       removePhoto,
       usualQuantities,
@@ -136,14 +157,20 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <InputField label="Shop Name" required value={name} onChange={(event) => setName(event.target.value)} />
+              <InputField label="Shop Name" required value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} />
             <div className="grid gap-4 sm:grid-cols-2">
-              <InputField label="Owner Name" value={ownerName} onChange={(event) => setOwnerName(event.target.value)} />
-              <InputField label="Phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
+              <InputField label="Owner Name" value={formData.owner_name} onChange={(event) => setFormData((prev) => ({ ...prev, owner_name: event.target.value }))} />
+              <InputField label="Phone" value={formData.phone} onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <InputField label="Area" value={area} onChange={(event) => setArea(event.target.value)} />
-              <InputField label="Address" value={address} onChange={(event) => setAddress(event.target.value)} />
+              <InputField label="Area" list="areas-list" value={formData.area} onChange={(event) => setFormData((prev) => ({ ...prev, area: event.target.value }))} />
+              <datalist id="areas-list">
+                {existingAreas.map((a) => (
+                  <option key={a} value={a} />
+                ))}
+              </datalist>
+
+              <InputField label="Address" value={formData.address} onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))} />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Photo <span className="text-xs text-slate-500">(optional)</span></label>
@@ -191,7 +218,7 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
                 </div>
               ) : null}
             </div>
-            <TextareaField label="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+              <TextareaField label="Notes" value={formData.notes} onChange={(event) => setFormData((prev) => ({ ...prev, notes: event.target.value }))} />
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             {warning ? <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700">{warning}</p> : null}
             {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
