@@ -58,7 +58,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = public, extensions, pg_temp
 as $$
 declare
   rider_row public.riders%rowtype;
@@ -71,7 +71,7 @@ begin
     and is_active = true
   limit 1;
 
-  if not found or crypt(pin_input, rider_row.pin_hash) <> rider_row.pin_hash then
+  if not found or extensions.crypt(pin_input::text, rider_row.pin_hash) <> rider_row.pin_hash then
     raise exception 'Invalid phone or PIN';
   end if;
 
