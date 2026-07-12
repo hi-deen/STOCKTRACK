@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Camera, MapPin, RefreshCcw, Route, Store } from "lucide-react";
+import { ArrowLeft, MapPin, RefreshCcw, Route, Store } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRiderAuth } from "@/lib/rider/RiderAuthContext";
 import RiderDeliveryModal from "@/components/phase9b/rider-delivery-modal";
@@ -22,7 +22,7 @@ type RiderRouteShop = {
   today_delivery_summary: string | null;
 };
 
-export default function RiderRoutePage() {
+export default function RiderDailyRoutePage() {
   const router = useRouter();
   const { rider, loading: authLoading, logout } = useRiderAuth();
   const [shops, setShops] = useState<RiderRouteShop[]>([]);

@@ -205,7 +205,7 @@ export default function RiderHomePage() {
           )}
         </section>
 
-        <button type="button" onClick={() => router.push("/rider/route")} disabled={activeBusinesses.length === 0} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--ink)] px-5 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+        <button type="button" onClick={() => router.push("/rider/daily-route")} disabled={activeBusinesses.length === 0} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--ink)] px-5 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
           <Route className="h-5 w-5" />
           Start Today&apos;s Route
         </button>

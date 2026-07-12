@@ -382,8 +382,8 @@ export default function DispatchPage() {
       ) : null}
 
       {selectedRider ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-3 py-3 sm:px-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-2 py-3 sm:px-4">
+          <div className="flex max-h-[90vh] w-[min(92vw,42rem)] flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:w-[min(90vw,42rem)]">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
               <div className="flex items-center gap-3">
                 <RiderAvatar photoPath={selectedRider.rider_photo_path} name={selectedRider.rider_full_name} />
@@ -394,7 +394,7 @@ export default function DispatchPage() {
               </div>
               <button type="button" onClick={() => setSelectedRider(null)}><X className="h-4 w-4" /></button>
             </div>
-            <div className="space-y-4 p-4">
+            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-800">Assigned Shops</p>
                 <div className="space-y-3">
@@ -402,19 +402,19 @@ export default function DispatchPage() {
                     const selectedDays = assignments[shop.id] ?? [];
                     return (
                       <div key={shop.id} className="rounded-2xl border border-slate-200 p-3">
-                        <div className="flex items-center justify-between">
-                          <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
                             <p className="font-semibold text-slate-800">{shop.name}</p>
                             <p className="text-xs text-slate-500">{shop.area ?? "Unassigned area"}</p>
                           </div>
-                          <button type="button" onClick={() => void toggleDay(shop.id, 0)} className={`rounded-xl px-3 py-1.5 text-sm font-semibold ${selectedDays.length > 0 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>
+                          <button type="button" onClick={() => void toggleDay(shop.id, 0)} className={`flex-shrink-0 rounded-xl px-3 py-1.5 text-sm font-semibold ${selectedDays.length > 0 ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}>
                             {selectedDays.length > 0 ? "Assigned" : "Assign"}
                           </button>
                         </div>
                         {selectedDays.length > 0 ? (
                           <div className="mt-3 flex flex-wrap gap-2">
                             {dayLabels.map((label, index) => (
-                              <button type="button" key={label} onClick={() => void toggleDay(shop.id, index)} className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${selectedDays.includes(index) ? "bg-[color:var(--primary)] text-white" : "bg-slate-100 text-slate-700"}`}>
+                              <button type="button" key={label} onClick={() => void toggleDay(shop.id, index)} className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold ${selectedDays.includes(index) ? "bg-[color:var(--primary)] text-white" : "bg-slate-100 text-slate-700"}`}>
                                 {label}
                               </button>
                             ))}
@@ -454,7 +454,8 @@ export default function DispatchPage() {
                   </div>
                 )}
               </div>
-              <div className="flex justify-end">
+              <div className="sticky bottom-0 mt-2 flex justify-end gap-2 border-t border-slate-200 bg-white pt-3">
+                <Button variant="outline" onClick={() => setSelectedRider(null)}>Done</Button>
                 <Button variant="danger" onClick={() => void removeFromBusiness()}>Remove from business</Button>
               </div>
             </div>
