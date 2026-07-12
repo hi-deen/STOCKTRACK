@@ -122,6 +122,12 @@ export default function ShopsPage() {
     };
   }, [activeBusinessId]);
 
+  const shopProductDefaults = useMemo(() => Object.fromEntries(
+    shopProducts
+      .filter((entry) => entry.shop_id === editingShop?.id)
+      .map((entry) => [entry.product_id, entry.usual_quantity?.toString() ?? ""])
+  ), [shopProducts, editingShop?.id]);
+
   const filteredShops = useMemo(() => {
     const normalizedQuery = query.toLowerCase();
     return shops.filter((shop) => [shop.name, shop.area ?? "", shop.owner_name ?? ""].some((value) => value.toLowerCase().includes(normalizedQuery)));
@@ -384,11 +390,7 @@ export default function ShopsPage() {
         mode={editingShop ? "edit" : "create"}
         shop={editingShop}
         products={products}
-        shopProductDefaults={Object.fromEntries(
-          shopProducts
-            .filter((entry) => entry.shop_id === editingShop?.id)
-            .map((entry) => [entry.product_id, entry.usual_quantity?.toString() ?? ""])
-        )}
+        shopProductDefaults={shopProductDefaults}
         onClose={() => { setModalOpen(false); setEditingShop(null); setError(null); setSuccess(null); }}
         onSubmit={handleCreateOrUpdate}
         submitting={submitting}

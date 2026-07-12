@@ -66,22 +66,24 @@ export default function ShopFormModal({ open, mode, shop, products = [], shopPro
   const activeProducts = useMemo(() => products.filter((product) => product.is_active), [products]);
 
   useEffect(() => {
-    if (open) {
-      setFormData({
-        name: shop?.name ?? "",
-        owner_name: shop?.owner_name ?? "",
-        phone: shop?.phone ?? "",
-        area: shop?.area ?? "",
-        address: shop?.address ?? "",
-        notes: shop?.notes ?? "",
-      });
-      setPhotoFile(null);
-      setPhotoPreviewUrl(null);
-      setRemovePhoto(false);
-      setShowUsualOrder(false);
-      setUsualQuantities(shopProductDefaults);
+    if (!open) {
+      return;
     }
-  }, [open, shop, shopProductDefaults]);
+
+    setFormData({
+      name: shop?.name ?? "",
+      owner_name: shop?.owner_name ?? "",
+      phone: shop?.phone ?? "",
+      area: shop?.area ?? "",
+      address: shop?.address ?? "",
+      notes: shop?.notes ?? "",
+    });
+    setPhotoFile(null);
+    setPhotoPreviewUrl(null);
+    setRemovePhoto(false);
+    setShowUsualOrder(false);
+    setUsualQuantities(shopProductDefaults ?? {});
+  }, [open, mode, shop?.id]);
 
   useEffect(() => {
     if (!open) return;
