@@ -35,6 +35,17 @@ type RiderAssignment = {
   created_at: string;
 };
 
+type RiderDeliveryRow = {
+  id: string;
+  shop_id: string;
+  product_id: string;
+  quantity: number;
+  total_amount: number;
+  delivery_date: string;
+  proof_photo_path: string | null;
+  created_at: string;
+};
+
 type ShopOption = {
   id: string;
   name: string;
@@ -56,6 +67,7 @@ export default function DispatchPage() {
   const [copied, setCopied] = useState(false);
   const [selectedRider, setSelectedRider] = useState<RiderRow | null>(null);
   const [assignments, setAssignments] = useState<Record<string, number[]>>({});
+  const [riderDeliveries, setRiderDeliveries] = useState<RiderDeliveryRow[]>([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -179,12 +191,17 @@ export default function DispatchPage() {
       return;
     }
 
-    const { data } = await supabase.from("rider_assignments").select("*").eq("rider_business_link_id", rider.id);
+    const [{ data: assignmentsData }, { data: deliveriesData }] = await Promise.all([
+      supabase.from("rider_assignments").select("*").eq("rider_business_link_id", rider.id),
+      supabase.from("stock_deliveries").select("id, shop_id, product_id, quantity, total_amount, delivery_date, proof_photo_path, created_at").eq("business_id", activeBusinessId).eq("delivered_by_rider_id", rider.rider_id).eq("delivery_date", new Date().toISOString().slice(0, 10)).order("created_at", { ascending: false }),
+    ]);
+
     const nextAssignments: Record<string, number[]> = {};
-    (data ?? []).forEach((assignment: RiderAssignment) => {
+    (assignmentsData ?? []).forEach((assignment: RiderAssignment) => {
       nextAssignments[assignment.shop_id] = assignment.days_of_week ?? [];
     });
     setAssignments(nextAssignments);
+    setRiderDeliveries((deliveriesData ?? []) as RiderDeliveryRow[]);
   };
 
   const toggleDay = async (shopId: string, dayIndex: number) => {
@@ -408,6 +425,35 @@ export default function DispatchPage() {
                   })}
                 </div>
               </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold text-slate-800">Today&apos;s deliveries</p>
+                {riderDeliveries.length === 0 ? (
+                  <p className="text-sm text-slate-500">No deliveries recorded today yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {riderDeliveries.map((delivery) => {
+                      const shopName = shops.find((shop) => shop.id === delivery.shop_id)?.name ?? "Shop";
+                      return (
+                        <div key={delivery.id} className="rounded-2xl border border-slate-200 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-slate-800">{shopName}</p>
+                              <p className="text-sm text-slate-500">{delivery.quantity} × product {delivery.product_id}</p>
+                            </div>
+                            <div className="text-right text-sm text-slate-500">
+                              <p>₦{Number(delivery.total_amount).toLocaleString("en-NG")}</p>
+                              <p>{delivery.delivery_date}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <DeliveryProofPreview photoPath={delivery.proof_photo_path} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
               <div className="flex justify-end">
                 <Button variant="danger" onClick={() => void removeFromBusiness()}>Remove from business</Button>
               </div>
@@ -425,4 +471,13 @@ function RiderAvatar({ photoPath, name }: { photoPath: string | null; name: stri
     return <img src={signedPhotoUrl} alt={name} className="h-11 w-11 rounded-full object-cover" />;
   }
   return <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--cream)] text-sm font-semibold text-[color:var(--ink)]">{name.slice(0, 1)}</div>;
+}
+
+function DeliveryProofPreview({ photoPath }: { photoPath: string | null }) {
+  const signedPhotoUrl = useSignedPhotoUrl(photoPath, "delivery-proofs");
+  if (!signedPhotoUrl) {
+    return <p className="text-sm text-slate-500">No proof photo available.</p>;
+  }
+
+  return <img src={signedPhotoUrl} alt="Delivery proof" className="h-24 w-full rounded-xl object-cover" />;
 }

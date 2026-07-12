@@ -51,6 +51,7 @@ export type StockDelivery = {
   total_amount: number;
   delivery_date: string;
   notes: string | null;
+  proof_photo_path: string | null;
   created_by: string | null;
   created_at: string;
   shop_name?: string;

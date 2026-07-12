@@ -15,11 +15,21 @@ import Card from "@/components/ui/Card";
 import EmptyState from "@/components/ui/EmptyState";
 import Skeleton from "@/components/ui/Skeleton";
 import { createClient } from "@/lib/supabase/client";
+import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 import type { Payment, Product, Shop, StockDelivery } from "@/types/phase2";
 import type { Reminder } from "@/types/phase4";
 
 function formatCurrency(value: number) {
   return `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
+}
+
+function DeliveryProofPreview({ photoPath }: { photoPath: string | null }) {
+  const signedPhotoUrl = useSignedPhotoUrl(photoPath, "delivery-proofs");
+  if (!signedPhotoUrl) {
+    return <p className="text-sm text-[color:var(--muted)]">No proof photo</p>;
+  }
+
+  return <img src={signedPhotoUrl} alt="Delivery proof" className="h-16 w-full rounded-lg object-cover" />;
 }
 
 export default function ShopDetailPage() {
@@ -291,6 +301,7 @@ export default function ShopDetailPage() {
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Qty</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Total</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Proof</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
@@ -300,6 +311,9 @@ export default function ShopDetailPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.quantity}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{formatCurrency(delivery.total_amount)}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.delivery_date}</td>
+                      <td className="px-4 py-3 text-[color:var(--muted)]">
+                        <DeliveryProofPreview photoPath={delivery.proof_photo_path} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
