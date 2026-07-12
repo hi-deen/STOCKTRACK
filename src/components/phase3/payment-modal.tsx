@@ -41,7 +41,7 @@ export default function PaymentModal({ open, onClose, onSubmit, submitting, erro
     setPaymentDate(new Date().toISOString().slice(0, 10));
     setMethod("cash");
     setNotes("");
-  }, [open, shops, defaultShopId]);
+  }, [open, defaultShopId]);
 
   useEffect(() => {
     if (!open) {

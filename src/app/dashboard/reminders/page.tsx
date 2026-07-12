@@ -84,6 +84,10 @@ export default function RemindersPage() {
   const overdueAndDueToday = useMemo(() => reminders.filter((reminder) => reminder.status === "pending" && reminder.due_date <= new Date().toISOString().slice(0, 10)).sort((a, b) => a.due_date.localeCompare(b.due_date)), [reminders]);
   const upcoming = useMemo(() => reminders.filter((reminder) => reminder.status === "pending" && reminder.due_date > new Date().toISOString().slice(0, 10) && new Date(reminder.due_date).getTime() - new Date().setHours(0, 0, 0, 0) <= 14 * 24 * 60 * 60 * 1000), [reminders]);
   const completed = useMemo(() => reminders.filter((reminder) => reminder.status !== "pending").slice(0, 20), [reminders]);
+  const reminderModalProps = useMemo(() => ({
+    open: modalOpen,
+    shops,
+  }), [modalOpen, shops]);
 
   const handleCreate = async (payload: { shop_id: string; type: string; title: string; message: string; due_date: string }) => {
     const supabase = createClient();
@@ -253,7 +257,7 @@ export default function RemindersPage() {
         </section>
       </div>
 
-      <ReminderModal open={modalOpen} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={shops} />
+      <ReminderModal open={reminderModalProps.open} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={reminderModalProps.shops} />
     </div>
   );
 }

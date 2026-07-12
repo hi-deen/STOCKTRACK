@@ -66,6 +66,10 @@ export default function PaymentsPage() {
     const matchesEnd = !endDate || payment.payment_date <= endDate;
     return matchesShop && matchesStart && matchesEnd;
   }), [payments, shopFilter, startDate, endDate]);
+  const paymentModalProps = useMemo(() => ({
+    open: modalOpen,
+    shops,
+  }), [modalOpen, shops]);
 
   const handleCreate = async (payload: { shop_id: string; amount: number; payment_date: string; method: string; notes: string }) => {
     const supabase = createClient();
@@ -189,7 +193,7 @@ export default function PaymentsPage() {
         </>
       )}
 
-      <PaymentModal open={modalOpen} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={shops} />
+      <PaymentModal open={paymentModalProps.open} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={paymentModalProps.shops} />
     </div>
   );
 }

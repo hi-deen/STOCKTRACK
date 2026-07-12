@@ -44,7 +44,7 @@ export default function DeliveryModal({ open, onClose, onSubmit, submitting, err
     setDeliveryDate(today);
     setNotes("");
     setShopProductRows([]);
-  }, [open, shops, products, defaultShopId, defaultProductId]);
+  }, [open, defaultShopId, defaultProductId]);
 
   useEffect(() => {
     if (!open) {

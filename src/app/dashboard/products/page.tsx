@@ -48,6 +48,15 @@ export default function ProductsPage() {
   }, [activeBusinessId]);
 
   const activeProducts = useMemo(() => products.filter((product) => product.is_active), [products]);
+  const productModalProps = useMemo<{
+    open: boolean;
+    mode: "create" | "edit";
+    product: Product | null;
+  }>(() => ({
+    open: modalOpen,
+    mode: editingProduct ? "edit" : "create",
+    product: editingProduct,
+  }), [modalOpen, editingProduct]);
 
   const handleCreateOrUpdate = async (payload: { name: string; unit: string; unit_price: number }) => {
     const supabase = createClient();
@@ -175,7 +184,16 @@ export default function ProductsPage() {
         </>
       )}
 
-      <ProductFormModal open={modalOpen} mode={editingProduct ? "edit" : "create"} product={editingProduct} onClose={() => { setModalOpen(false); setEditingProduct(null); setError(null); setSuccess(null); }} onSubmit={handleCreateOrUpdate} submitting={submitting} error={error} success={success} />
+      <ProductFormModal
+        open={productModalProps.open}
+        mode={productModalProps.mode}
+        product={productModalProps.product}
+        onClose={() => { setModalOpen(false); setEditingProduct(null); setError(null); setSuccess(null); }}
+        onSubmit={handleCreateOrUpdate}
+        submitting={submitting}
+        error={error}
+        success={success}
+      />
     </div>
   );
 }

@@ -79,6 +79,11 @@ export default function StockPage() {
     const matchesEnd = !endDate || delivery.delivery_date <= endDate;
     return matchesShop && matchesStart && matchesEnd;
   }), [deliveries, shopFilter, startDate, endDate]);
+  const deliveryModalProps = useMemo(() => ({
+    open: modalOpen,
+    shops,
+    products,
+  }), [modalOpen, shops, products]);
 
   const handleCreate = async (payload: { shop_id: string; product_id: string; quantity: number; unit_price: number; delivery_date: string; notes: string }) => {
     const supabase = createClient();
@@ -209,7 +214,7 @@ export default function StockPage() {
         </>
       )}
 
-      <DeliveryModal open={modalOpen} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={shops} products={products} />
+      <DeliveryModal open={deliveryModalProps.open} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={deliveryModalProps.shops} products={deliveryModalProps.products} />
     </div>
   );
 }

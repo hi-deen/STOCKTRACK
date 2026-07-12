@@ -36,7 +36,7 @@ export default function ReminderModal({ open, onClose, onSubmit, submitting, err
     setTitle("");
     setMessage("");
     setDueDate(new Date().toISOString().slice(0, 10));
-  }, [open, shops, defaultShopId]);
+  }, [open, defaultShopId]);
 
   useEffect(() => {
     if (!open) {

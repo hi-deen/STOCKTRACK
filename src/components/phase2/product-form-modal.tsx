@@ -23,13 +23,15 @@ export default function ProductFormModal({ open, mode, product, onClose, onSubmi
   const [unitPrice, setUnitPrice] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setName(product?.name ?? "");
-      setUnit(product?.unit ?? "carton");
-      setCustomUnit("");
-      setUnitPrice(product?.unit_price?.toString() ?? "");
+    if (!open) {
+      return;
     }
-  }, [open, product]);
+
+    setName(product?.name ?? "");
+    setUnit(product?.unit ?? "carton");
+    setCustomUnit("");
+    setUnitPrice(product?.unit_price?.toString() ?? "");
+  }, [open, product?.id]);
 
   useEffect(() => {
     if (!open) {
