@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CircleDollarSign, Plus } from "lucide-react";
+import { CalendarDays, CircleDollarSign, Plus, XCircle } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
+import VoidConfirmModal from "@/components/modals/VoidConfirmModal";
 import PaymentModal from "@/components/phase3/payment-modal";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -21,6 +22,7 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeBusinessRole } = useBusiness();
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,9 @@ export default function PaymentsPage() {
   const [shopFilter, setShopFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const [showVoided, setShowVoided] = useState(false);
+  const [voiding, setVoiding] = useState<{ id: string; shopName?: string | null; amount?: number | null; date?: string | null } | null>(null);
 
   const loadData = async () => {
     const supabase = createClient();
@@ -40,7 +45,7 @@ export default function PaymentsPage() {
 
     setLoading(true);
     const [paymentsRes, shopsRes] = await Promise.all([
-      supabase.from("payments").select("*").eq("business_id", activeBusinessId).order("payment_date", { ascending: false }).order("created_at", { ascending: false }).limit(50),
+      supabase.from("payments").select("*").eq("business_id", activeBusinessId).order("payment_date", { ascending: false }).order("created_at", { ascending: false }).is('voided_at', showVoided ? undefined : null).limit(50),
       supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("name"),
     ]);
 
@@ -59,6 +64,38 @@ export default function PaymentsPage() {
   useEffect(() => {
     void loadData();
   }, [activeBusinessId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [showVoided]);
+
+  const openVoidModal = (payment: Payment) => {
+    if (activeBusinessRole !== 'owner') {
+      alert('Only owners can void records.');
+      return;
+    }
+
+    setVoiding({ id: payment.id, shopName: payment.shop_name, amount: Number(payment.amount), date: payment.payment_date });
+  };
+
+  const handleConfirmVoid = async (reason: string) => {
+    if (!voiding) return;
+    const supabase = createClient();
+    if (!supabase) {
+      setError('Supabase client not available');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('void_payment', { payment_id_input: voiding.id, reason_input: reason });
+      if (error) throw error;
+      setPayments((prev) => prev.filter((p) => p.id !== voiding.id));
+      setSuccess('Record voided');
+      setVoiding(null);
+    } catch (err) {
+      setError((err as Error).message || 'Failed to void');
+    }
+  };
 
   const filteredPayments = useMemo(() => payments.filter((payment) => {
     const matchesShop = shopFilter === "all" || payment.shop_id === shopFilter;
@@ -141,6 +178,13 @@ export default function PaymentsPage() {
         </div>
       </Card>
 
+      <div className="flex items-center gap-3">
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showVoided} onChange={(e) => setShowVoided(e.target.checked)} />
+          Show voided records
+        </label>
+      </div>
+
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (<Skeleton key={index} className="h-28" />))}
@@ -158,6 +202,7 @@ export default function PaymentsPage() {
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Amount</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Method</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
@@ -167,6 +212,13 @@ export default function PaymentsPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">{formatCurrency(payment.amount)}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{payment.method ?? "—"}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{payment.payment_date}</td>
+                      <td className="px-4 py-3 text-[color:var(--muted)]">
+                        {payment.voided_at ? (
+                          <Badge variant="warning">Voided</Badge>
+                        ) : (activeBusinessRole === 'owner' ? (
+                          <Button variant="ghost" onClick={() => openVoidModal(payment)} className="text-red-400"><XCircle className="h-4 w-4" /></Button>
+                        ) : null)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -194,6 +246,7 @@ export default function PaymentsPage() {
       )}
 
       <PaymentModal open={paymentModalProps.open} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={paymentModalProps.shops} />
+          <VoidConfirmModal isOpen={Boolean(voiding)} onClose={() => setVoiding(null)} onConfirm={handleConfirmVoid} type="payment" item={voiding ? { id: voiding.id, shopName: voiding.shopName, amount: voiding.amount, date: voiding.date } : null} />
     </div>
   );
 }

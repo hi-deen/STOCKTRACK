@@ -54,6 +54,9 @@ export type StockDelivery = {
   proof_photo_path: string | null;
   created_by: string | null;
   created_at: string;
+  voided_at?: string | null;
+  voided_by?: string | null;
+  void_reason?: string | null;
   shop_name?: string;
   product_name?: string;
   product_unit?: string;
@@ -69,6 +72,9 @@ export type Payment = {
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  voided_at?: string | null;
+  voided_by?: string | null;
+  void_reason?: string | null;
   shop_name?: string;
 };
 

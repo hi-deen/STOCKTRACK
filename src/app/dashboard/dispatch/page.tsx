@@ -193,7 +193,7 @@ export default function DispatchPage() {
 
     const [{ data: assignmentsData }, { data: deliveriesData }] = await Promise.all([
       supabase.from("rider_assignments").select("*").eq("rider_business_link_id", rider.id),
-      supabase.from("stock_deliveries").select("id, shop_id, product_id, quantity, total_amount, delivery_date, proof_photo_path, created_at").eq("business_id", activeBusinessId).eq("delivered_by_rider_id", rider.rider_id).eq("delivery_date", new Date().toISOString().slice(0, 10)).order("created_at", { ascending: false }),
+      supabase.from("stock_deliveries").select("id, shop_id, product_id, quantity, total_amount, delivery_date, proof_photo_path, created_at").eq("business_id", activeBusinessId).eq("delivered_by_rider_id", rider.rider_id).eq("delivery_date", new Date().toISOString().slice(0, 10)).is('voided_at', null).order("created_at", { ascending: false }),
     ]);
 
     const nextAssignments: Record<string, number[]> = {};

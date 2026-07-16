@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, PackageCheck, Plus } from "lucide-react";
+import { CalendarDays, PackageCheck, Plus, XCircle } from "lucide-react";
 import { useBusiness } from "@/components/providers/business-provider";
+import VoidConfirmModal from "@/components/modals/VoidConfirmModal";
 import DeliveryModal from "@/components/phase3/delivery-modal";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -22,6 +23,7 @@ export default function StockPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeBusinessRole } = useBusiness();
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +31,9 @@ export default function StockPage() {
   const [shopFilter, setShopFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const [showVoided, setShowVoided] = useState(false);
+  const [voiding, setVoiding] = useState<{ id: string; shopName?: string | null; amount?: number | null; date?: string | null } | null>(null);
 
   const loadData = async () => {
     const supabase = createClient();
@@ -42,7 +47,7 @@ export default function StockPage() {
 
     setLoading(true);
     const [deliveriesRes, shopsRes, productsRes] = await Promise.all([
-      supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).order("delivery_date", { ascending: false }).order("created_at", { ascending: false }).limit(50),
+      supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).order("delivery_date", { ascending: false }).order("created_at", { ascending: false }).is('voided_at', showVoided ? undefined : null).limit(50),
       supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("name"),
       supabase.from("products").select("*").eq("business_id", activeBusinessId).order("name"),
     ]);
@@ -72,6 +77,38 @@ export default function StockPage() {
   useEffect(() => {
     void loadData();
   }, [activeBusinessId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [showVoided]);
+
+  const openVoidModal = (delivery: StockDelivery) => {
+    if (activeBusinessRole !== 'owner') {
+      alert('Only owners can void records.');
+      return;
+    }
+
+    setVoiding({ id: delivery.id, shopName: delivery.shop_name, amount: Number(delivery.total_amount), date: delivery.delivery_date });
+  };
+
+  const handleConfirmVoid = async (reason: string) => {
+    if (!voiding) return;
+    const supabase = createClient();
+    if (!supabase) {
+      setError('Supabase client not available');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.rpc('void_delivery', { delivery_id_input: voiding.id, reason_input: reason });
+      if (error) throw error;
+      setDeliveries((prev) => prev.filter((d) => d.id !== voiding.id));
+      setSuccess('Record voided');
+      setVoiding(null);
+    } catch (err) {
+      setError((err as Error).message || 'Failed to void');
+    }
+  };
 
   const filteredDeliveries = useMemo(() => deliveries.filter((delivery) => {
     const matchesShop = shopFilter === "all" || delivery.shop_id === shopFilter;
@@ -159,6 +196,13 @@ export default function StockPage() {
         </div>
       </Card>
 
+      <div className="flex items-center gap-3">
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={showVoided} onChange={(e) => setShowVoided(e.target.checked)} />
+          Show voided records
+        </label>
+      </div>
+
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (<Skeleton key={index} className="h-32" />))}
@@ -177,6 +221,7 @@ export default function StockPage() {
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Qty</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Total</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Date</th>
+                    <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
@@ -187,6 +232,13 @@ export default function StockPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.quantity} {delivery.product_unit ?? "unit"}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{formatCurrency(delivery.total_amount)}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.delivery_date}</td>
+                      <td className="px-4 py-3 text-[color:var(--muted)]">
+                        {delivery.voided_at ? (
+                          <Badge variant="warning">Voided</Badge>
+                        ) : (activeBusinessRole === 'owner' ? (
+                          <Button variant="ghost" onClick={() => openVoidModal(delivery)} className="text-red-400"><XCircle className="h-4 w-4" /></Button>
+                        ) : null)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -201,12 +253,17 @@ export default function StockPage() {
                     <p className="font-semibold text-[color:var(--ink)]">{delivery.shop_name ?? "Unknown"}</p>
                     <p className="mt-1 text-sm text-[color:var(--muted)]">{delivery.product_name ?? "Unknown"}</p>
                   </div>
-                  <Badge variant="info">Delivery</Badge>
+                  {delivery.voided_at ? <Badge variant="warning">Voided</Badge> : <Badge variant="info">Delivery</Badge>}
                 </div>
                 <div className="mt-4 grid gap-2 text-sm text-[color:var(--muted)]">
                   <p>{delivery.quantity} {delivery.product_unit ?? "unit"}</p>
                   <p>{formatCurrency(delivery.total_amount)}</p>
                   <p className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {delivery.delivery_date}</p>
+                  {activeBusinessRole === 'owner' && !delivery.voided_at ? (
+                    <div className="mt-2">
+                      <Button variant="ghost" onClick={() => openVoidModal(delivery)} className="text-red-400">Void</Button>
+                    </div>
+                  ) : null}
                 </div>
               </Card>
             ))}
@@ -215,6 +272,7 @@ export default function StockPage() {
       )}
 
       <DeliveryModal open={deliveryModalProps.open} onClose={() => { setModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreate} submitting={submitting} error={error} success={success} shops={deliveryModalProps.shops} products={deliveryModalProps.products} />
+          <VoidConfirmModal isOpen={Boolean(voiding)} onClose={() => setVoiding(null)} onConfirm={handleConfirmVoid} type="delivery" item={voiding ? { id: voiding.id, shopName: voiding.shopName, amount: voiding.amount, date: voiding.date } : null} />
     </div>
   );
 }

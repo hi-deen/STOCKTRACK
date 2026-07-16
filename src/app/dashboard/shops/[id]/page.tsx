@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useSignedPhotoUrl } from "@/lib/supabase/photo";
 import type { Payment, Product, Shop, StockDelivery } from "@/types/phase2";
 import type { Reminder } from "@/types/phase4";
+import VoidConfirmModal from "@/components/modals/VoidConfirmModal";
 
 function formatCurrency(value: number) {
   return `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
@@ -41,6 +42,7 @@ export default function ShopDetailPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const { activeBusinessRole } = useBusiness();
   const [modalOpen, setModalOpen] = useState(false);
   const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -52,6 +54,17 @@ export default function ShopDetailPage() {
   const [balance, setBalance] = useState(0);
   const [activeTab, setActiveTab] = useState<"deliveries" | "payments" | "reminders">("deliveries");
 
+  const [showVoidedDeliveries, setShowVoidedDeliveries] = useState(false);
+  const [showVoidedPayments, setShowVoidedPayments] = useState(false);
+
+  const [voiding, setVoiding] = useState<{
+    type: "delivery" | "payment";
+    id: string;
+    shopName?: string | null;
+    amount?: number | null;
+    date?: string | null;
+  } | null>(null);
+
   const loadShop = async () => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId || !params.id) {
@@ -62,8 +75,12 @@ export default function ShopDetailPage() {
     setLoading(true);
     const [shopRes, deliveriesRes, paymentsRes, remindersRes, shopsRes, productsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("business_id", activeBusinessId).eq("id", params.id).maybeSingle(),
-      supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id).order("delivery_date", { ascending: false }).order("created_at", { ascending: false }),
-      supabase.from("payments").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id).order("payment_date", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id)
+        .order("delivery_date", { ascending: false }).order("created_at", { ascending: false })
+        .is('voided_at', showVoidedDeliveries ? undefined : null),
+      supabase.from("payments").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id)
+        .order("payment_date", { ascending: false }).order("created_at", { ascending: false })
+        .is('voided_at', showVoidedPayments ? undefined : null),
       supabase.from("reminders").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id).eq("status", "pending").order("due_date", { ascending: true }),
       supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("name"),
       supabase.from("products").select("*").eq("business_id", activeBusinessId).order("name"),
@@ -94,7 +111,39 @@ export default function ShopDetailPage() {
 
   useEffect(() => {
     void loadShop();
-  }, [activeBusinessId, params.id]);
+  }, [activeBusinessId, params.id, showVoidedDeliveries, showVoidedPayments]);
+
+  const openVoidModal = (type: "delivery" | "payment", id: string, shopName?: string | null, amount?: number | null, date?: string | null) => {
+    if (activeBusinessRole !== "owner") {
+      alert("Only owners can void records.");
+      return;
+    }
+
+    setVoiding({ type, id, shopName, amount, date });
+  };
+
+  const handleConfirmVoid = async (reason: string) => {
+    if (!voiding) return;
+
+    const supabase = createClient();
+    if (!supabase) return;
+
+    try {
+      if (voiding.type === "delivery") {
+        const { error } = await supabase.rpc("void_delivery", { delivery_id_input: voiding.id, reason_input: reason });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.rpc("void_payment", { payment_id_input: voiding.id, reason_input: reason });
+        if (error) throw error;
+      }
+
+      setSuccess("Record voided");
+      setVoiding(null);
+      await loadShop();
+    } catch (err) {
+      setError((err as Error).message || "Failed to void record.");
+    }
+  };
 
   const handleUpdate = async (payload: { name: string; owner_name: string; phone: string; area: string; address: string; notes: string }) => {
     const supabase = createClient();
@@ -302,17 +351,25 @@ export default function ShopDetailPage() {
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Total</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Date</th>
                     <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Proof</th>
+                    <th className="px-4 py-3 text-left font-semibold text-[color:var(--ink)]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                   {deliveries.map((delivery) => (
                     <tr key={delivery.id}>
-                      <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">{delivery.product_id ? delivery.product_id : "Unknown"}</td>
+                      <td className={`px-4 py-3 font-semibold text-[color:var(--ink)] ${delivery.voided_at ? 'line-through text-[color:var(--muted)]' : ''}`}>{delivery.product_id ? delivery.product_id : "Unknown"}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.quantity}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{formatCurrency(delivery.total_amount)}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.delivery_date}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">
                         <DeliveryProofPreview photoPath={delivery.proof_photo_path} />
+                      </td>
+                      <td className="px-4 py-3 text-[color:var(--muted)]">
+                        {delivery.voided_at ? (
+                          <Badge variant="warning">Voided</Badge>
+                        ) : (activeBusinessRole === 'owner' ? (
+                          <Button variant="ghost" onClick={() => openVoidModal('delivery', delivery.id, shop?.name ?? delivery.shop_id, Number(delivery.total_amount), delivery.delivery_date)}>Void</Button>
+                        ) : null)}
                       </td>
                     </tr>
                   ))}
@@ -338,9 +395,16 @@ export default function ShopDetailPage() {
                 <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                   {payments.map((payment) => (
                     <tr key={payment.id}>
-                      <td className="px-4 py-3 font-semibold text-[color:var(--ink)]">{formatCurrency(payment.amount)}</td>
+                      <td className={`px-4 py-3 font-semibold text-[color:var(--ink)] ${payment.voided_at ? 'line-through text-[color:var(--muted)]' : ''}`}>{formatCurrency(payment.amount)}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{payment.method ?? "—"}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{payment.payment_date}</td>
+                      <td className="px-4 py-3 text-[color:var(--muted)]">
+                        {payment.voided_at ? (
+                          <Badge variant="warning">Voided</Badge>
+                        ) : (activeBusinessRole === 'owner' ? (
+                          <Button variant="ghost" onClick={() => openVoidModal('payment', payment.id, shop?.name ?? payment.shop_id, Number(payment.amount), payment.payment_date)}>Void</Button>
+                        ) : null)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -384,6 +448,7 @@ export default function ShopDetailPage() {
       <DeliveryModal open={deliveryModalOpen} onClose={() => { setDeliveryModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreateDelivery} submitting={submitting} error={error} success={success} shops={shops} products={products} defaultShopId={shop.id} />
       <PaymentModal open={paymentModalOpen} onClose={() => { setPaymentModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreatePayment} submitting={submitting} error={error} success={success} shops={shops} defaultShopId={shop.id} />
       <ReminderModal open={reminderModalOpen} onClose={() => { setReminderModalOpen(false); setError(null); setSuccess(null); }} onSubmit={handleCreateReminder} submitting={submitting} error={error} success={success} shops={shops} defaultShopId={shop.id} />
+      <VoidConfirmModal isOpen={Boolean(voiding)} onClose={() => setVoiding(null)} onConfirm={handleConfirmVoid} type={voiding?.type ?? "delivery"} item={voiding ? { id: voiding.id, shopName: voiding.shopName, amount: voiding.amount, date: voiding.date } : null} />
     </div>
   );
 }

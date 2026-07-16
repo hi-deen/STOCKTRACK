@@ -88,8 +88,8 @@ export default function DashboardPage() {
         supabase.rpc("get_business_dashboard_stats", { business_id_input: activeBusinessId }),
         supabase.from("shops").select("*").eq("business_id", activeBusinessId).order("name"),
         supabase.from("products").select("*").eq("business_id", activeBusinessId).order("name"),
-        supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).order("delivery_date", { ascending: false }).order("created_at", { ascending: false }).limit(20),
-        supabase.from("payments").select("*").eq("business_id", activeBusinessId).order("payment_date", { ascending: false }).order("created_at", { ascending: false }).limit(10),
+        supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).order("delivery_date", { ascending: false }).order("created_at", { ascending: false }).is('voided_at', null).limit(20),
+        supabase.from("payments").select("*").eq("business_id", activeBusinessId).order("payment_date", { ascending: false }).order("created_at", { ascending: false }).is('voided_at', null).limit(10),
         supabase.from("reminders").select("id").eq("business_id", activeBusinessId).eq("status", "pending").lte("due_date", new Date().toISOString().slice(0, 10)),
         supabase.rpc("get_reminder_suggestions", { business_id_input: activeBusinessId }),
       ]);

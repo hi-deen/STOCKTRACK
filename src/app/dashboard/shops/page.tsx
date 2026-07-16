@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle, PencilLine, Plus, Search, Store, ToggleLeft, ToggleRight } from "lucide-react";
+import { ArrowRight, CheckCircle, PencilLine, Plus, Search, Store, ToggleLeft, ToggleRight, Download, Upload } from "lucide-react";
+import Papa from 'papaparse';
 import browserImageCompression from "browser-image-compression";
 import { useBusiness } from "@/components/providers/business-provider";
 import ShopFormModal from "@/components/phase2/shop-form-modal";
@@ -27,6 +28,14 @@ export default function ShopsPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
+  const { activeBusinessRole } = useBusiness();
+
+  const [exporting, setExporting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+  const [importCount, setImportCount] = useState(0);
+  const [importing, setImporting] = useState(false);
   const [visitedTodayShopIds, setVisitedTodayShopIds] = useState<Set<string>>(new Set());
 
   const loadShops = async () => {
@@ -65,8 +74,8 @@ export default function ShopsPage() {
 
     const today = new Date().toISOString().slice(0, 10);
     const [deliveriesRes, paymentsRes] = await Promise.all([
-      supabase.from("stock_deliveries").select("shop_id").eq("business_id", activeBusinessId).eq("delivery_date", today),
-      supabase.from("payments").select("shop_id").eq("business_id", activeBusinessId).eq("payment_date", today),
+      supabase.from("stock_deliveries").select("shop_id").eq("business_id", activeBusinessId).eq("delivery_date", today).is('voided_at', null),
+      supabase.from("payments").select("shop_id").eq("business_id", activeBusinessId).eq("payment_date", today).is('voided_at', null),
     ]);
 
     if (deliveriesRes.error || paymentsRes.error) {
@@ -266,6 +275,102 @@ export default function ShopsPage() {
     );
   };
 
+  const downloadCSV = (csv: string, filename: string) => {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async () => {
+    if (!activeBusinessId) return;
+    setExporting(true);
+    const supabase = createClient();
+    if (!supabase) {
+      setError('Supabase client not available');
+      setExporting(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('export_shops', { business_id_input: activeBusinessId });
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      const csv = Papa.unparse(rows.map((r) => ({
+        Name: r.name,
+        'Owner Name': r.owner_name,
+        Phone: r.phone,
+        Area: r.area,
+        Address: r.address,
+        Notes: r.notes,
+        'Usual Order': r.usual_order_summary,
+      })));
+
+      const businessName = shops.find((s) => s.business_id === activeBusinessId)?.name ?? 'shops';
+      const filename = `shops-export-${businessName}-${new Date().toISOString().slice(0,10)}.csv`;
+      downloadCSV(csv, filename);
+    } catch (err) {
+      setError((err as Error).message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportFile = (file: File | null) => {
+    if (!file) return;
+    setImportFileName(file.name);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results: any) => {
+        const rows = results.data as any[];
+        setImportPreview(rows.slice(0, 5));
+        setImportCount(rows.length);
+      },
+      error: (err: any) => setError(err.message),
+    });
+  };
+
+  const handleImportConfirm = async (file: File | null) => {
+    if (!file || !activeBusinessId) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const parsed = await new Promise<any[]>((resolve, reject) => {
+        Papa.parse(file, { header: true, skipEmptyLines: true, complete: (res: any) => resolve(res.data as any[]), error: (err: any) => reject(err) });
+      });
+
+      const shopsJson = parsed.map((row) => ({
+        name: row['Name'] ?? row['name'],
+        owner_name: row['Owner Name'] ?? row['owner_name'] ?? null,
+        phone: row['Phone'] ?? row['phone'] ?? null,
+        area: row['Area'] ?? row['area'] ?? null,
+        address: row['Address'] ?? row['address'] ?? null,
+        notes: row['Notes'] ?? row['notes'] ?? null,
+      }));
+
+      const supabase = createClient();
+      if (!supabase) {
+        throw new Error('Supabase client not available');
+      }
+
+      const { data, error } = await supabase.rpc('import_shops', { business_id_input: activeBusinessId, shops_json: shopsJson });
+      if (error) throw error;
+      setSuccess(`Imported: ${data?.imported ?? 0}, Skipped: ${data?.skipped ?? 0}`);
+      setImportOpen(false);
+      await loadShops();
+    } catch (err) {
+      setError((err as Error).message || 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const toggleActive = async (shop: Shop) => {
     const supabase = createClient();
     if (!supabase || !activeBusinessId) {
@@ -290,7 +395,15 @@ export default function ShopsPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">Shops</p>
           <h1 className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-semibold text-[color:var(--ink)]">Manage your retail partners</h1>
         </div>
-        <Button onClick={() => { setEditingShop(null); setModalOpen(true); }} icon={Plus}>Add Shop</Button>
+        <div className="flex items-center gap-2">
+          {activeBusinessRole === 'owner' ? (
+            <>
+              <Button onClick={() => void handleExport()} icon={Download} variant="outline">Export Shops</Button>
+              <Button onClick={() => setImportOpen(true)} icon={Upload} variant="ghost">Import Shops</Button>
+            </>
+          ) : null}
+          <Button onClick={() => { setEditingShop(null); setModalOpen(true); }} icon={Plus}>Add Shop</Button>
+        </div>
       </Card>
 
       {error ? <div className="rounded-[1.35rem] border border-[color:var(--danger-soft)] bg-[color:var(--danger-soft)]/70 p-3 text-sm text-[color:var(--danger)]">{error}</div> : null}
@@ -397,6 +510,38 @@ export default function ShopsPage() {
         error={error}
         success={success}
       />
+      {importOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6">
+            <h3 className="text-lg font-semibold">Import Shops (CSV)</h3>
+            <p className="mt-2 text-sm text-[color:var(--muted)]">Upload a CSV with columns: Name, Owner Name, Phone, Area, Address, Notes. First row should be the header.</p>
+            <div className="mt-4">
+              <input type="file" accept=".csv" onChange={(e) => handleImportFile(e.target.files ? e.target.files[0] : null)} />
+              {importFileName ? <p className="mt-2 text-sm">Selected: {importFileName} ({importCount} rows)</p> : null}
+            </div>
+            {importPreview.length ? (
+              <div className="mt-4 overflow-auto max-h-40">
+                <table className="min-w-full divide-y text-sm">
+                  <thead className="bg-[color:var(--cream)]/70"><tr>{Object.keys(importPreview[0]).map((k) => (<th key={k} className="px-2 py-1 text-left font-semibold">{k}</th>))}</tr></thead>
+                  <tbody className="divide-y">
+                    {importPreview.map((row, idx) => (
+                      <tr key={idx}>{Object.values(row).map((v, i) => (<td key={i} className="px-2 py-1 text-[color:var(--muted)]">{String(v)}</td>))}</tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setImportOpen(false); setImportPreview([]); setImportFileName(null); }}>Cancel</Button>
+              <Button onClick={async () => {
+                const inputEl = document.querySelector('input[type=file]') as HTMLInputElement | null;
+                const file = inputEl?.files?.[0] ?? null;
+                await handleImportConfirm(file);
+              }} disabled={importing}>{importing ? 'Importing...' : 'Import'}</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
