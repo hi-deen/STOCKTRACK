@@ -75,7 +75,7 @@ export default function ShopDetailPage() {
     setLoading(true);
     const [shopRes, deliveriesRes, paymentsRes, remindersRes, shopsRes, productsRes] = await Promise.all([
       supabase.from("shops").select("*").eq("business_id", activeBusinessId).eq("id", params.id).maybeSingle(),
-      supabase.from("stock_deliveries").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id)
+      supabase.from("stock_deliveries").select("*, products(name, unit)").eq("business_id", activeBusinessId).eq("shop_id", params.id)
         .order("delivery_date", { ascending: false }).order("created_at", { ascending: false })
         .is('voided_at', showVoidedDeliveries ? undefined : null),
       supabase.from("payments").select("*").eq("business_id", activeBusinessId).eq("shop_id", params.id)
@@ -94,7 +94,11 @@ export default function ShopDetailPage() {
 
     const currentShop = (shopRes.data as Shop | null) ?? null;
     setShop(currentShop);
-    setDeliveries((deliveriesRes.data ?? []) as StockDelivery[]);
+    setDeliveries(((deliveriesRes.data ?? []) as any[]).map((d) => ({
+      ...d,
+      product_name: d.products?.name ?? null,
+      product_unit: d.products?.unit ?? null,
+    })) as StockDelivery[]);
     setPayments((paymentsRes.data ?? []) as Payment[]);
     setReminders((remindersRes.data ?? []) as Reminder[]);
     setShops((shopsRes.data ?? []) as Shop[]);
@@ -357,7 +361,7 @@ export default function ShopDetailPage() {
                 <tbody className="divide-y divide-[color:var(--border)] bg-[color:var(--surface)]">
                   {deliveries.map((delivery) => (
                     <tr key={delivery.id}>
-                      <td className={`px-4 py-3 font-semibold text-[color:var(--ink)] ${delivery.voided_at ? 'line-through text-[color:var(--muted)]' : ''}`}>{delivery.product_id ? delivery.product_id : "Unknown"}</td>
+                      <td className={`px-4 py-3 font-semibold text-[color:var(--ink)] ${delivery.voided_at ? 'line-through text-[color:var(--muted)]' : ''}`}>{(delivery.product_name ?? delivery.product_id ?? "Unknown")}{delivery.product_unit ? ` ${delivery.product_unit}` : ""}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.quantity}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{formatCurrency(delivery.total_amount)}</td>
                       <td className="px-4 py-3 text-[color:var(--muted)]">{delivery.delivery_date}</td>
@@ -367,7 +371,7 @@ export default function ShopDetailPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">
                         {delivery.voided_at ? (
                           <Badge variant="warning">Voided</Badge>
-                        ) : (activeBusinessRole === 'owner' ? (
+                        ) : ((activeBusinessRole?.toLowerCase?.() === 'owner') ? (
                           <Button variant="ghost" onClick={() => openVoidModal('delivery', delivery.id, shop?.name ?? delivery.shop_id, Number(delivery.total_amount), delivery.delivery_date)}>Void</Button>
                         ) : null)}
                       </td>
@@ -401,7 +405,7 @@ export default function ShopDetailPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">
                         {payment.voided_at ? (
                           <Badge variant="warning">Voided</Badge>
-                        ) : (activeBusinessRole === 'owner' ? (
+                        ) : ((activeBusinessRole?.toLowerCase?.() === 'owner') ? (
                           <Button variant="ghost" onClick={() => openVoidModal('payment', payment.id, shop?.name ?? payment.shop_id, Number(payment.amount), payment.payment_date)}>Void</Button>
                         ) : null)}
                       </td>

@@ -23,6 +23,8 @@ export default function PaymentsPage() {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
   const { activeBusinessRole } = useBusiness();
+  // temporary: log role to verify rendering in owner accounts
+  useEffect(() => { console.log('payments activeBusinessRole', activeBusinessRole); }, [activeBusinessRole]);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -215,7 +217,7 @@ export default function PaymentsPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">
                         {payment.voided_at ? (
                           <Badge variant="warning">Voided</Badge>
-                        ) : (activeBusinessRole === 'owner' ? (
+                        ) : ((activeBusinessRole?.toLowerCase?.() === 'owner') ? (
                           <Button variant="ghost" onClick={() => openVoidModal(payment)} className="text-red-400"><XCircle className="h-4 w-4" /></Button>
                         ) : null)}
                       </td>

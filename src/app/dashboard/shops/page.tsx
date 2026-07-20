@@ -396,7 +396,7 @@ export default function ShopsPage() {
           <h1 className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-semibold text-[color:var(--ink)]">Manage your retail partners</h1>
         </div>
         <div className="flex items-center gap-2">
-          {activeBusinessRole === 'owner' ? (
+          {(activeBusinessRole?.toLowerCase?.() === 'owner') ? (
             <>
               <Button onClick={() => void handleExport()} icon={Download} variant="outline">Export Shops</Button>
               <Button onClick={() => setImportOpen(true)} icon={Upload} variant="ghost">Import Shops</Button>

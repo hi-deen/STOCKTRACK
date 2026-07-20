@@ -24,6 +24,8 @@ export default function StockPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { activeBusinessRole } = useBusiness();
+  // temporary: log role to verify rendering in owner accounts
+  useEffect(() => { console.log('product-delivery activeBusinessRole', activeBusinessRole); }, [activeBusinessRole]);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -235,7 +237,7 @@ export default function StockPage() {
                       <td className="px-4 py-3 text-[color:var(--muted)]">
                         {delivery.voided_at ? (
                           <Badge variant="warning">Voided</Badge>
-                        ) : (activeBusinessRole === 'owner' ? (
+                        ) : ((activeBusinessRole?.toLowerCase?.() === 'owner') ? (
                           <Button variant="ghost" onClick={() => openVoidModal(delivery)} className="text-red-400"><XCircle className="h-4 w-4" /></Button>
                         ) : null)}
                       </td>
@@ -246,7 +248,7 @@ export default function StockPage() {
             </Card>
           </div>
           <div className="grid gap-4 md:hidden">
-            {filteredDeliveries.map((delivery) => (
+                  {filteredDeliveries.map((delivery) => (
               <Card key={delivery.id}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -259,7 +261,7 @@ export default function StockPage() {
                   <p>{delivery.quantity} {delivery.product_unit ?? "unit"}</p>
                   <p>{formatCurrency(delivery.total_amount)}</p>
                   <p className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {delivery.delivery_date}</p>
-                  {activeBusinessRole === 'owner' && !delivery.voided_at ? (
+                  {(activeBusinessRole?.toLowerCase?.() === 'owner') && !delivery.voided_at ? (
                     <div className="mt-2">
                       <Button variant="ghost" onClick={() => openVoidModal(delivery)} className="text-red-400">Void</Button>
                     </div>
