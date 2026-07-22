@@ -395,11 +395,11 @@ export default function ShopsPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[color:var(--primary)]">Shops</p>
           <h1 className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-semibold text-[color:var(--ink)]">Manage your retail partners</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(activeBusinessRole?.toLowerCase?.() === 'owner') ? (
             <>
-              <Button onClick={() => void handleExport()} icon={Download} variant="outline">Export Shops</Button>
-              <Button onClick={() => setImportOpen(true)} icon={Upload} variant="ghost">Import Shops</Button>
+              <Button onClick={() => void handleExport()} icon={Download} variant="outline" disabled={exporting}>{exporting ? 'Exporting...' : 'Export Shops'}</Button>
+              <Button onClick={() => setImportOpen(true)} icon={Upload} variant="outline">Import Shops</Button>
             </>
           ) : null}
           <Button onClick={() => { setEditingShop(null); setModalOpen(true); }} icon={Plus}>Add Shop</Button>

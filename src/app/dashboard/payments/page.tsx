@@ -235,11 +235,16 @@ export default function PaymentsPage() {
                     <p className="font-semibold text-[color:var(--ink)]">{payment.shop_name ?? "Unknown"}</p>
                     <p className="mt-1 text-sm text-[color:var(--muted)]">{payment.method ?? "—"}</p>
                   </div>
-                  <Badge variant="success">Received</Badge>
+                  {payment.voided_at ? <Badge variant="warning">Voided</Badge> : <Badge variant="success">Received</Badge>}
                 </div>
                 <div className="mt-4 grid gap-2 text-sm text-[color:var(--muted)]">
                   <p>{formatCurrency(payment.amount)}</p>
                   <p className="inline-flex items-center gap-2"><CalendarDays className="h-4 w-4" /> {payment.payment_date}</p>
+                  {(activeBusinessRole?.toLowerCase?.() === 'owner') && !payment.voided_at ? (
+                    <div className="mt-2">
+                      <Button variant="ghost" onClick={() => openVoidModal(payment)} className="text-red-400">Void</Button>
+                    </div>
+                  ) : null}
                 </div>
               </Card>
             ))}
