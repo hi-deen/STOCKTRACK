@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, LoaderCircle, LogOut, ShieldCheck } from "lucide-react";
+import { AlertCircle, AlertTriangle, LoaderCircle, LogOut, ShieldCheck, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import PasswordInput from "@/components/ui/PasswordInput";
@@ -17,6 +17,10 @@ export default function ProfilePage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [soleOwnerBlocked, setSoleOwnerBlocked] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -69,6 +73,52 @@ export default function ProfilePage() {
     setPassword("");
     setConfirmPassword("");
     setPasswordLoading(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError(null);
+    setSoleOwnerBlocked(null);
+
+    if (deleteConfirm.trim() !== "DELETE") {
+      setDeleteError('Type DELETE (all caps) to confirm.');
+      return;
+    }
+
+    setDeleteLoading(true);
+
+    let response: Response;
+    try {
+      response = await fetch("/api/account/delete", { method: "POST" });
+    } catch {
+      setDeleteError("Could not reach the server. Please try again.");
+      setDeleteLoading(false);
+      return;
+    }
+
+    let payload: { deleted?: boolean; error?: string } = {};
+    try {
+      payload = await response.json();
+    } catch {
+      // Handled by the status checks below.
+    }
+
+    if (response.ok && payload.deleted) {
+      const supabase = createClient();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+      router.push("/login?message=" + encodeURIComponent("Your account has been permanently deleted."));
+      return;
+    }
+
+    if (response.status === 409 && payload.error) {
+      setSoleOwnerBlocked(payload.error);
+      setDeleteLoading(false);
+      return;
+    }
+
+    setDeleteError(payload.error ?? "Something went wrong. Your account was not deleted.");
+    setDeleteLoading(false);
   };
 
   const handleLogout = async () => {
@@ -129,6 +179,65 @@ export default function ProfilePage() {
           <Button variant="danger" onClick={handleLogout} icon={LogOut}>
             Log out
           </Button>
+        </div>
+
+        <div className="border-t border-[color:var(--border)] pt-4">
+          <div className="rounded-[1.2rem] border-2 border-[color:var(--danger)] bg-[color:var(--danger)]/5 p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-[color:var(--danger)]" />
+              <div>
+                <p className="font-semibold text-[color:var(--danger)]">Delete account</p>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  This permanently removes your account, your membership in any businesses, and your access
+                  to this app. This cannot be undone. Historical business records you do not solely own are
+                  not affected.
+                </p>
+              </div>
+            </div>
+
+            {soleOwnerBlocked ? (
+              <div className="mt-4 rounded-[1rem] border border-[color:var(--danger)] bg-white p-3">
+                <p className="text-sm text-[color:var(--danger)]">{soleOwnerBlocked}</p>
+                <p className="mt-2 text-sm text-[color:var(--muted)]">
+                  Resolve this first in the Distro mobile app: Account tab &rarr; Delete account, which has
+                  the tools to transfer ownership or delete a business. Then return here to delete your account.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label
+                    htmlFor="delete-confirm"
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                  >
+                    Type <span className="font-semibold">DELETE</span> to confirm
+                  </label>
+                  <input
+                    id="delete-confirm"
+                    type="text"
+                    value={deleteConfirm}
+                    onChange={(event) => setDeleteConfirm(event.target.value)}
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--danger)]"
+                  />
+                </div>
+                {deleteError ? (
+                  <div className="flex items-center gap-2 text-sm text-[color:var(--danger)]">
+                    <AlertCircle className="h-4 w-4" />
+                    {deleteError}
+                  </div>
+                ) : null}
+                <Button
+                  variant="danger"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading || deleteConfirm.trim() !== "DELETE"}
+                  icon={deleteLoading ? LoaderCircle : Trash2}
+                >
+                  {deleteLoading ? "Deleting..." : "Permanently delete my account"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </Card>
     </div>
