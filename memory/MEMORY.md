@@ -1,0 +1,1 @@
+- [Account deletion compliance](account-deletion-compliance.md) — Play Store account-deletion feature: URLs, support email, owner vs rider paths

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { MoreVertical, Route } from "lucide-react";
+import { AlertTriangle, MoreVertical, Route, Trash2 } from "lucide-react";
+import PasswordInput from "@/components/ui/PasswordInput";
 import { createClient } from "@/lib/supabase/client";
 import { useRiderAuth } from "@/lib/rider/RiderAuthContext";
 
@@ -26,6 +27,11 @@ export default function RiderHomePage() {
   const [submitting, setSubmitting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePin, setDeletePin] = useState("");
+  const [deleteAck, setDeleteAck] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -93,6 +99,41 @@ export default function RiderHomePage() {
     setSubmitting(false);
   };
 
+  const handleDeleteAccount = async () => {
+    const token = window.localStorage.getItem("rider_session_token");
+    if (!supabase || !token) {
+      router.replace("/rider/login");
+      return;
+    }
+
+    setDeleteError(null);
+
+    if (!deletePin) {
+      setDeleteError("Enter your PIN to confirm.");
+      return;
+    }
+    if (!deleteAck) {
+      setDeleteError("Please confirm you understand this cannot be undone.");
+      return;
+    }
+
+    setDeleteLoading(true);
+
+    const { data, error: deleteRpcError } = await supabase.rpc("rider_delete_account", {
+      token_input: token,
+      pin_input: deletePin,
+    });
+
+    if (deleteRpcError || !data || (data as { deleted?: boolean }).deleted !== true) {
+      setDeleteError(deleteRpcError?.message ?? "Could not delete your account. Please try again.");
+      setDeleteLoading(false);
+      return;
+    }
+
+    await logout();
+    router.replace("/rider/login?deleted=1");
+  };
+
   const handleRedeemCode = async () => {
     const token = window.localStorage.getItem("rider_session_token");
     if (!supabase || !token || !inviteCode.trim()) {
@@ -145,6 +186,7 @@ export default function RiderHomePage() {
               <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[color:var(--border)] bg-white p-2 shadow-lg">
                 <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm text-[color:var(--ink)] hover:bg-[color:var(--cream)]">Profile / Edit Photo</button>
                 <button type="button" onClick={() => { void logout(); router.push("/rider/login"); }} className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm text-[color:var(--ink)] hover:bg-[color:var(--cream)]">Log out</button>
+                <button type="button" onClick={() => { setMenuOpen(false); setShowDelete(true); }} className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-700 hover:bg-red-50">Delete account</button>
               </div>
             ) : null}
           </div>
@@ -209,6 +251,37 @@ export default function RiderHomePage() {
           <Route className="h-5 w-5" />
           Start Today&apos;s Route
         </button>
+
+        {showDelete ? (
+          <section className="rounded-2xl border-2 border-red-500 bg-red-50 p-4">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-red-600" />
+              <div>
+                <h2 className="text-base font-semibold text-red-700">Delete account</h2>
+                <p className="mt-1 text-sm text-[color:var(--muted)]">
+                  This permanently removes your rider account, your links to any businesses, and your
+                  route assignments. This cannot be undone. Past delivery records kept by businesses
+                  are retained without your name attached.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              <PasswordInput id="delete-pin" label="Enter your PIN to confirm" value={deletePin} onChange={setDeletePin} placeholder="••••••" minLength={4} autoComplete="current-password" />
+              <label className="flex items-start gap-2 text-sm text-[color:var(--ink)]">
+                <input type="checkbox" checked={deleteAck} onChange={(event) => setDeleteAck(event.target.checked)} className="mt-0.5 h-4 w-4" />
+                <span>I understand my account and data will be permanently deleted.</span>
+              </label>
+              {deleteError ? <p className="text-sm text-red-600">{deleteError}</p> : null}
+              <div className="flex gap-2">
+                <button type="button" disabled={deleteLoading || !deletePin || !deleteAck} onClick={() => void handleDeleteAccount()} className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
+                  <Trash2 className="h-4 w-4" />
+                  {deleteLoading ? "Deleting..." : "Permanently delete my account"}
+                </button>
+                <button type="button" disabled={deleteLoading} onClick={() => { setShowDelete(false); setDeletePin(""); setDeleteAck(false); setDeleteError(null); }} className="rounded-xl border border-[color:var(--border)] px-4 py-3 text-sm font-semibold text-[color:var(--ink)]">Cancel</button>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <div className="text-center">
           <Link href="/rider/login" className="text-sm font-semibold text-[color:var(--ink)]">Back to login</Link>

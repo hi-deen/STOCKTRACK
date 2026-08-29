@@ -12,6 +12,9 @@ export default function RiderLoginPage() {
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [deleted] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("deleted") === "1",
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,6 +39,11 @@ export default function RiderLoginPage() {
           <h1 className="mt-2 text-3xl font-semibold text-[color:var(--ink)]">Rider login</h1>
           <p className="mt-2 text-sm text-[color:var(--muted)]">Use your phone number and PIN to access your route.</p>
         </div>
+        {deleted ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+            Your rider account has been permanently deleted.
+          </div>
+        ) : null}
         <form onSubmit={handleSubmit} className="space-y-4 rounded-[1.5rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-[0_18px_48px_-24px_rgba(43,36,32,0.45)]">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="phone">Phone number</label>
