@@ -1,23 +1,29 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { Field, FormInput } from '@/components/form-input';
 import { MessageBox } from '@/components/message-box';
-import { Page } from '@/components/page';
+import { Page, SectionLabel } from '@/components/page';
 import { PrimaryButton } from '@/components/primary-button';
+import { PromptModal } from '@/components/prompt-modal';
 import { ScreenHeader } from '@/components/screen-header';
+import { SettingsRow } from '@/components/settings-row';
 import { SkeletonRows } from '@/components/skeleton';
 import { useToast } from '@/components/toast';
 import { useFocusEffect } from '@/hooks/use-focus-effect';
+import { deleteBusinessEntirely } from '@/lib/account-deletion-api';
 import { getBusinessSettings, saveBusinessSettings } from '@/lib/business-settings-api';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
 
 export default function BusinessSettingsPage() {
+  const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
+  const { activeBusinessId, activeMembership, refetchMemberships } = useBusinessAuth();
   const isOwner = activeMembership?.role === 'owner';
+  const businessName = activeMembership?.business_name ?? 'this business';
 
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -27,6 +33,10 @@ export default function BusinessSettingsPage() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!activeBusinessId || dirty) return;
@@ -80,6 +90,32 @@ export default function BusinessSettingsPage() {
     fn();
   };
 
+  // Deletes this specific business (not the caller's account) — any current
+  // owner can do this, distinct from the sole-ownership resolution inside
+  // account deletion. The (business)/layout.tsx redirect and
+  // business-auth-context's active-business re-pick both fire off
+  // refetchMemberships(), same as leaving a business.
+  async function handleDeleteSubmit(typedName: string) {
+    if (!activeBusinessId) return;
+    if (typedName.trim().toLowerCase() !== businessName.trim().toLowerCase()) {
+      setDeleteError("That name doesn't match. Nothing was deleted.");
+      return;
+    }
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteBusinessEntirely(activeBusinessId);
+      await refetchMemberships();
+      setDeleteOpen(false);
+      toast.show('Business deleted');
+      router.replace('/operations');
+    } catch (err) {
+      setDeleteError(getErrorMessage(err, 'Could not delete this business.'));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <>
       <ScreenHeader title="Business settings" back />
@@ -118,9 +154,40 @@ export default function BusinessSettingsPage() {
             {saveError ? <MessageBox tone="danger" message={saveError} /> : null}
 
             {isOwner ? <PrimaryButton label="Save settings" onClick={handleSave} disabled={!canSubmit} loading={saving} /> : null}
+
+            {isOwner ? (
+              <>
+                <SectionLabel className="pt-4">Danger zone</SectionLabel>
+                <div className="-mx-4 lg:mx-0">
+                  <SettingsRow
+                    icon="trash-outline"
+                    title="Delete this business"
+                    subtitle="Permanently delete it and everything in it"
+                    tone="danger"
+                    onPress={() => setDeleteOpen(true)}
+                  />
+                </div>
+                {deleteError && !deleteOpen ? <MessageBox tone="danger" message={deleteError} /> : null}
+              </>
+            ) : null}
           </>
         ) : null}
       </Page>
+
+      <PromptModal
+        visible={deleteOpen}
+        title={`Delete ${businessName}?`}
+        description={`This permanently deletes the business and everything in it — shops, deliveries, payments, members. Everyone loses access. This cannot be undone. Type the business name exactly to confirm: ${businessName}`}
+        placeholder="Business name"
+        submitLabel="Delete business"
+        loading={deleting}
+        error={deleteError}
+        onCancel={() => {
+          setDeleteOpen(false);
+          setDeleteError(null);
+        }}
+        onSubmit={handleDeleteSubmit}
+      />
     </>
   );
 }

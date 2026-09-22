@@ -10,7 +10,10 @@ import { Icon } from '@/components/icon';
 import { Page } from '@/components/page';
 import { ScreenHeader } from '@/components/screen-header';
 import { SettingsDivider, SettingsRow } from '@/components/settings-row';
+import { useToast } from '@/components/toast';
+import { leaveBusiness } from '@/lib/business-api';
 import { useBusinessAuth } from '@/lib/business-auth-context';
+import { getErrorMessage } from '@/lib/error-message';
 import { hapticTap } from '@/lib/haptics';
 import { useThemePreference, type ThemePreference } from '@/lib/theme-preference-context';
 
@@ -22,18 +25,43 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 export default function AccountPage() {
   const router = useRouter();
+  const toast = useToast();
   const { preference, setPreference } = useThemePreference();
-  const { userEmail, memberships, activeBusinessId, activeMembership, setActiveBusinessId, signOut } = useBusinessAuth();
+  const { userEmail, memberships, activeBusinessId, activeMembership, setActiveBusinessId, refetchMemberships, signOut } =
+    useBusinessAuth();
   const isOwner = activeMembership?.role === 'owner';
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
 
   const businessName = activeMembership?.business_name ?? 'Your business';
   const initial = businessName.trim().charAt(0).toUpperCase() || 'D';
   const canSwitch = memberships.length > 1;
   const themeLabel = THEME_OPTIONS.find((o) => o.value === preference)?.label ?? 'System default';
+
+  // The (business)/layout.tsx guard already redirects to onboarding once
+  // memberships is empty, and business-auth-context's setActiveBusinessId
+  // logic already re-picks from what's left — both fire off
+  // refetchMemberships(), so no extra navigation is needed here.
+  async function handleLeave() {
+    if (!activeBusinessId) return;
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      await leaveBusiness(activeBusinessId);
+      await refetchMemberships();
+      setLeaveOpen(false);
+      toast.show(`Left ${businessName}`);
+    } catch (err) {
+      setLeaveError(getErrorMessage(err, 'Something went wrong. Please try again.'));
+    } finally {
+      setLeaving(false);
+    }
+  }
 
   const profile = (
     <>
@@ -114,6 +142,19 @@ export default function AccountPage() {
 
         <SettingsDivider />
 
+        {!isOwner ? (
+          <>
+            <SettingsRow
+              icon="exit-outline"
+              title="Leave this business"
+              subtitle={`Remove yourself from ${businessName}`}
+              tone="danger"
+              onPress={() => setLeaveOpen(true)}
+            />
+            <SettingsDivider />
+          </>
+        ) : null}
+
         <SettingsRow icon="log-out-outline" title="Log out" onPress={() => setLogoutOpen(true)} />
         <SettingsRow
           icon="trash-outline"
@@ -171,6 +212,20 @@ export default function AccountPage() {
           router.replace('/');
         }}
         onCancel={() => setLogoutOpen(false)}
+      />
+
+      <ConfirmDialog
+        visible={leaveOpen}
+        title="Leave this business?"
+        message={leaveError ?? `You will lose access to ${businessName} and its data. This cannot be undone.`}
+        confirmLabel="Leave"
+        destructive
+        loading={leaving}
+        onConfirm={handleLeave}
+        onCancel={() => {
+          setLeaveOpen(false);
+          setLeaveError(null);
+        }}
       />
     </>
   );

@@ -35,3 +35,10 @@ export async function redeemBusinessInviteCode(code: string): Promise<string> {
   if (error) throw error;
   return data as string;
 }
+
+// Staff-only self-removal — the server rejects this for an owner (they
+// must transfer ownership or delete the business instead).
+export async function leaveBusiness(businessId: string): Promise<void> {
+  const { error } = await supabase.rpc('leave_business', { business_id_input: businessId });
+  if (error) throw error;
+}
