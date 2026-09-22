@@ -1,21 +1,15 @@
-import { redirect } from "next/navigation";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+'use client';
 
-export default async function HomePage() {
-  const supabase = await createServerSupabaseClient();
+import { FullScreenLoader, Redirect } from '@/components/redirect';
+import { useBusinessAuth } from '@/lib/business-auth-context';
+import { useRiderAuth } from '@/lib/rider-auth-context';
 
-  if (!supabase) {
-    redirect("/login");
-  }
+export default function Index() {
+  const { isAuthenticated: riderAuthenticated, isLoading: riderLoading } = useRiderAuth();
+  const { isAuthenticated: businessAuthenticated, isLoading: businessLoading } = useBusinessAuth();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { count } = await supabase.from("business_members").select("id", { count: "exact", head: true });
-  redirect(count ? "/dashboard" : "/onboarding");
+  if (riderLoading || businessLoading) return <FullScreenLoader />;
+  if (riderAuthenticated) return <Redirect href="/rider/home" />;
+  if (businessAuthenticated) return <Redirect href="/operations" />;
+  return <Redirect href="/choose" />;
 }

@@ -1,97 +1,175 @@
 import Dexie, { type Table } from "dexie";
-import type { Product, ShopOperationsRow } from "@/types/phase2";
+import type { OperationsShopRow, Product } from "@/types/catalog";
+import type { ProductUnit } from "@/types/stock";
+import type { RecordDeliveryInput, RecordPaymentInput } from "@/lib/operations-api";
 
-export type OperationsCacheEntry = ShopOperationsRow & {
-  business_id: string;
-  cached_at: string;
-};
+// The PWA's offline layer. Only the fast daily-route actions work offline:
+// the Today list (read from the last snapshot) and recording deliveries and
+// payments (queued here, replayed through the same API calls when back
+// online). Everything else needs a connection.
 
-export type ProductsCacheEntry = Product & {
-  business_id: string;
-  cached_at: string;
-};
+export type CachedRow<T> = T & { business_id: string; cached_at: string };
 
-export type PendingMutation = {
-  id?: number;
-  business_id: string;
-  type: "delivery" | "payment" | "reminder";
-  payload: Record<string, unknown>;
-  created_at: string;
-  status: "pending" | "syncing" | "failed";
-  error_message?: string | null;
-};
+export type PendingMutation =
+  | {
+      id?: number;
+      business_id: string;
+      type: "delivery";
+      payload: RecordDeliveryInput;
+      shop_name?: string;
+      created_at: string;
+      status: "pending" | "syncing" | "failed";
+      error_message?: string | null;
+    }
+  | {
+      id?: number;
+      business_id: string;
+      type: "payment";
+      payload: RecordPaymentInput;
+      shop_name?: string;
+      created_at: string;
+      status: "pending" | "syncing" | "failed";
+      error_message?: string | null;
+    };
 
-export type SyncMetaEntry = {
-  business_id: string;
-  last_synced_at: string | null;
-};
-
-class OfflineStockTrackDB extends Dexie {
-  operationsCache!: Table<OperationsCacheEntry, [string, string]>;
-  productsCache!: Table<ProductsCacheEntry, [string, string]>;
+class OfflineDistroDB extends Dexie {
+  operationsCache!: Table<CachedRow<OperationsShopRow>, [string, string]>;
+  productsCache!: Table<CachedRow<Product>, [string, string]>;
+  unitsCache!: Table<CachedRow<ProductUnit>, [string, string]>;
   pendingMutations!: Table<PendingMutation, number>;
-  syncMeta!: Table<SyncMetaEntry, string>;
+  syncMeta!: Table<{ business_id: string; last_synced_at: string | null }, string>;
 
   constructor() {
-    super("stocktrack-offline");
+    super("distro-offline");
     this.version(1).stores({
-      operationsCache: "[business_id+shop_id], business_id, cached_at",
-      productsCache: "[business_id+product_id], business_id, cached_at",
+      operationsCache: "[business_id+shop_id], business_id",
+      productsCache: "[business_id+id], business_id",
+      unitsCache: "[business_id+id], business_id, product_id",
       pendingMutations: "++id, business_id, status, created_at",
       syncMeta: "business_id",
     });
   }
 }
 
-export const offlineDb = new OfflineStockTrackDB();
+let db: OfflineDistroDB | null = null;
 
-export async function clearOfflineData() {
-  await offlineDb.transaction("rw", offlineDb.operationsCache, offlineDb.productsCache, offlineDb.pendingMutations, offlineDb.syncMeta, async () => {
-    await offlineDb.operationsCache.clear();
-    await offlineDb.productsCache.clear();
-    await offlineDb.pendingMutations.clear();
-    await offlineDb.syncMeta.clear();
-  });
+// Dexie touches IndexedDB, which only exists in the browser.
+export function offlineDb(): OfflineDistroDB {
+  if (!db) {
+    db = new OfflineDistroDB();
+    // The pre-redesign PWA used a different database; drop it once.
+    void Dexie.delete("stocktrack-offline").catch(() => undefined);
+  }
+  return db;
 }
 
-export async function cacheOperationsSnapshot({
-  businessId,
-  rows,
-  products,
-}: {
-  businessId: string;
-  rows: ShopOperationsRow[];
-  products: Product[];
-}) {
+export function isNetworkError(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message: unknown }).message)
+      : String(error);
+  return /network|failed to fetch|fetch failed|load failed|offline|socket|timeout/i.test(message);
+}
+
+export async function clearOfflineData() {
+  const d = offlineDb();
+  await Promise.all([
+    d.operationsCache.clear(),
+    d.productsCache.clear(),
+    d.unitsCache.clear(),
+    d.pendingMutations.clear(),
+    d.syncMeta.clear(),
+  ]);
+}
+
+async function replaceBusinessRows<T extends { business_id: string }>(
+  table: Table<T, [string, string]>,
+  businessId: string,
+  rows: T[],
+) {
+  await table.where("business_id").equals(businessId).delete();
+  if (rows.length > 0) await table.bulkPut(rows);
+}
+
+export async function cacheOperations(businessId: string, rows: OperationsShopRow[]) {
   const cachedAt = new Date().toISOString();
+  const d = offlineDb();
+  await replaceBusinessRows(
+    d.operationsCache,
+    businessId,
+    rows.map((row) => ({ ...row, business_id: businessId, cached_at: cachedAt })),
+  );
+  await d.syncMeta.put({ business_id: businessId, last_synced_at: cachedAt });
+}
 
-  await offlineDb.transaction("rw", offlineDb.operationsCache, offlineDb.productsCache, offlineDb.syncMeta, async () => {
-    const validRows = rows.filter((row) => row.shop_id != null && row.shop_id !== "");
-    const validProducts = products.filter((product) => product.id != null && product.id !== "");
+export async function getCachedOperations(
+  businessId: string,
+): Promise<{ rows: OperationsShopRow[]; lastSyncedAt: string | null }> {
+  const d = offlineDb();
+  const [rows, meta] = await Promise.all([
+    d.operationsCache.where("business_id").equals(businessId).toArray(),
+    d.syncMeta.get(businessId),
+  ]);
+  return { rows, lastSyncedAt: meta?.last_synced_at ?? null };
+}
 
-    if (validRows.length > 0) {
-      await offlineDb.operationsCache.bulkPut(
-        validRows.map((row) => ({
-          ...row,
-          business_id: businessId,
-          cached_at: cachedAt,
-        }))
-      );
-    }
+export async function cacheProducts(businessId: string, products: Product[]) {
+  const cachedAt = new Date().toISOString();
+  await replaceBusinessRows(
+    offlineDb().productsCache,
+    businessId,
+    products.map((p) => ({ ...p, business_id: businessId, cached_at: cachedAt })),
+  );
+}
 
-    if (validProducts.length > 0) {
-      await offlineDb.productsCache.bulkPut(
-        validProducts.map((product) => ({
-          ...product,
-          business_id: businessId,
-          cached_at: cachedAt,
-        }))
-      );
-    }
+export async function getCachedProducts(businessId: string): Promise<Product[]> {
+  return offlineDb().productsCache.where("business_id").equals(businessId).toArray();
+}
 
-    await offlineDb.syncMeta.put({
-      business_id: businessId,
-      last_synced_at: cachedAt,
-    });
-  });
+export async function cacheProductUnits(businessId: string, productId: string, units: ProductUnit[]) {
+  const cachedAt = new Date().toISOString();
+  const d = offlineDb();
+  await d.unitsCache.where("product_id").equals(productId).delete();
+  if (units.length > 0) {
+    await d.unitsCache.bulkPut(units.map((u) => ({ ...u, business_id: businessId, cached_at: cachedAt })));
+  }
+}
+
+export async function getCachedProductUnits(productId: string): Promise<ProductUnit[]> {
+  return offlineDb().unitsCache.where("product_id").equals(productId).toArray();
+}
+
+export async function queueMutation(mutation: Omit<PendingMutation, "id" | "created_at" | "status">) {
+  await offlineDb().pendingMutations.add({
+    ...mutation,
+    created_at: new Date().toISOString(),
+    status: "pending",
+  } as PendingMutation);
+  notifyPendingChanged();
+}
+
+export async function getOpenMutations(businessId: string): Promise<PendingMutation[]> {
+  return offlineDb().pendingMutations.where("business_id").equals(businessId).sortBy("created_at");
+}
+
+export async function retryMutation(id: number) {
+  await offlineDb().pendingMutations.update(id, { status: "pending", error_message: null });
+  notifyPendingChanged();
+}
+
+export async function discardMutation(id: number) {
+  await offlineDb().pendingMutations.delete(id);
+  notifyPendingChanged();
+}
+
+// Lightweight pub/sub so the banner and the Today list refresh when the
+// queue changes, without polling.
+const PENDING_EVENT = "distro:pending-changed";
+export function notifyPendingChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PENDING_EVENT));
+}
+export function onPendingChanged(listener: () => void) {
+  window.addEventListener(PENDING_EVENT, listener);
+  return () => window.removeEventListener(PENDING_EVENT, listener);
 }

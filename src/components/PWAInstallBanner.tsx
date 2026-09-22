@@ -36,7 +36,10 @@ export default function PWAInstallBanner() {
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
 
-    setIsInstalled(window.matchMedia("(display-mode: standalone)").matches || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
+    setIsInstalled(
+      window.matchMedia("(display-mode: standalone)").matches ||
+        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone),
+    );
     setIsOnline(window.navigator.onLine);
 
     return () => {
@@ -57,30 +60,33 @@ export default function PWAInstallBanner() {
     setDeferredPrompt(null);
   };
 
-  if (isInstalled) {
+  const showOffline = !isOnline;
+  const showInstall = !isInstalled && !!deferredPrompt;
+
+  if (!showOffline && !showInstall) {
     return null;
   }
 
   return (
-    <div className="mb-4 space-y-2">
-      {!isOnline ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-[color:var(--border)] bg-[color:var(--cream)]/80 px-3 py-2 text-sm text-[color:var(--ink)]">
-          <WifiOff className="h-4 w-4 text-[color:var(--primary)]" />
-          You are offline. StockTrack will continue to load cached pages when available.
+    <div className="space-y-2">
+      {showOffline ? (
+        <div className="flex items-center gap-2 rounded-sm bg-warning-soft px-4 py-3 text-sm font-medium text-warning">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          You are offline. Deliveries and payments you record are saved on this device and sync when you
+          are back online.
         </div>
       ) : null}
 
-      {deferredPrompt ? (
-        <div className="flex flex-col gap-3 rounded-[1.35rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-4 shadow-[0_12px_40px_-24px_rgba(43,36,32,0.45)] sm:flex-row sm:items-center sm:justify-between">
+      {showInstall ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-[color:var(--ink)]">Install StockTrack on your phone</p>
-            <p className="mt-1 text-sm text-[color:var(--muted)]">Open it from your home screen for faster daily field operations.</p>
+            <p className="text-sm font-bold text-fg">Install Distro on your device</p>
+            <p className="mt-0.5 text-sm text-muted">Open it from your home screen for faster daily operations.</p>
           </div>
           <button
             type="button"
             onClick={handleInstall}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-          >
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-on-primary transition hover:opacity-90">
             <Download className="h-4 w-4" />
             Install app
           </button>

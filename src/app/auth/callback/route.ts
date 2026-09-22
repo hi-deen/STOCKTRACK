@@ -41,11 +41,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === "recovery") {
-    return NextResponse.redirect(new URL("/reset-password", requestUrl));
+    return NextResponse.redirect(new URL("/forgot-password", requestUrl));
   }
 
   const { count } = await supabase.from("business_members").select("id", { count: "exact", head: true });
-  const redirectTo = count ? "/dashboard/operations" : "/onboarding";
+  const redirectTo = count ? "/operations" : "/onboarding/choose";
 
   return NextResponse.redirect(new URL(redirectTo, requestUrl));
 }

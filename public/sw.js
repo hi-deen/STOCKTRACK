@@ -1,6 +1,6 @@
 const APP_SHELL = [
   '/',
-  '/dashboard/operations',
+  '/operations',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match('/dashboard/operations').then((cached) => cached || caches.match('/')))
+        .catch(() => caches.match('/operations').then((cached) => cached || caches.match('/')))
     );
     return;
   }

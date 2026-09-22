@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Keeps the Supabase auth cookie fresh on document requests so server route
+// handlers (e.g. /api/account/delete) always see a valid session. Route
+// protection itself is client-side (the business/rider layouts), matching the
+// mobile app's guard-in-layout pattern.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
@@ -17,33 +21,18 @@ export async function proxy(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request: { headers: request.headers } });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const publicPaths = ["/forgot-password", "/reset-password", "/auth/callback", "/login", "/signup", "/onboarding"];
-
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (!user && publicPaths.includes(request.nextUrl.pathname)) {
-    return response;
-  }
+  await supabase.auth.getUser();
 
   return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/forgot-password", "/reset-password", "/auth/callback"],
+  matcher: ["/api/:path*", "/auth/callback"],
 };

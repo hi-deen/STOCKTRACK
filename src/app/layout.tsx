@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import PWARegister from "@/components/PWARegister";
 import UpdateAvailable from "@/components/UpdateAvailable";
-import { RiderAuthProvider } from "@/lib/rider/RiderAuthContext";
+import { ToastProvider } from "@/components/toast";
+import { BusinessAuthProvider } from "@/lib/business-auth-context";
+import { RiderAuthProvider } from "@/lib/rider-auth-context";
+import { THEME_INIT_SCRIPT, ThemePreferenceProvider } from "@/lib/theme-preference-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,14 +13,9 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const outfit = Outfit({
-  variable: "--font-heading",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "StockTrack",
-  description: "Multi-tenant stock, customer, and payment tracker for distribution businesses",
+  title: "Distro",
+  description: "Stock, shop and payment tracker for distribution businesses",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -29,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#c2620a",
+  themeColor: "#1d4e89",
 };
 
 export default function RootLayout({
@@ -38,11 +36,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="flex min-h-full flex-col">
         <PWARegister />
         <UpdateAvailable />
-        <RiderAuthProvider>{children}</RiderAuthProvider>
+        <ThemePreferenceProvider>
+          <RiderAuthProvider>
+            <BusinessAuthProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </BusinessAuthProvider>
+          </RiderAuthProvider>
+        </ThemePreferenceProvider>
       </body>
     </html>
   );

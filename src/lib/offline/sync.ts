@@ -1,109 +1,53 @@
-import { createClient } from "@/lib/supabase/client";
-import { cacheOperationsSnapshot, offlineDb, type PendingMutation } from "@/lib/offline/db";
-import type { Product, ShopOperationsRow } from "@/types/phase2";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordDelivery, recordPayment } from "@/lib/operations-api";
+import { isNetworkError, notifyPendingChanged, offlineDb } from "@/lib/offline/db";
 
-function isNetworkError(error: unknown) {
-  if (!error) return false;
-  const message = error instanceof Error ? error.message : String(error);
-  return /network|failed to fetch|fetch failed|offline|socket|timeout/i.test(message);
-}
+let running = false;
 
-export async function syncPendingMutations(supabase: SupabaseClient | null, businessId: string) {
-  if (!supabase || !businessId) {
-    return { processed: 0, succeeded: 0, failed: 0 };
-  }
+// Replays queued deliveries/payments in the order they were recorded through
+// the very same API calls used online (so the server-side triggers, stock
+// effects and audit trail are identical). A network failure stops the run and
+// leaves the rest queued; any other error marks that one item "failed" so the
+// user can retry or discard it.
+export async function syncPendingMutations(businessId: string) {
+  if (running || !businessId) return { processed: 0, succeeded: 0, failed: 0 };
+  running = true;
 
-  const pendingMutations = await offlineDb.pendingMutations.where("business_id").equals(businessId).filter((mutation) => mutation.status === "pending").sortBy("created_at");
-
+  const d = offlineDb();
   let processed = 0;
   let succeeded = 0;
   let failed = 0;
 
-  for (const mutation of pendingMutations) {
-    processed += 1;
-    await offlineDb.pendingMutations.update(mutation.id!, { status: "syncing", error_message: null });
+  try {
+    const queue = await d.pendingMutations
+      .where("business_id")
+      .equals(businessId)
+      .filter((m) => m.status === "pending")
+      .sortBy("created_at");
 
-    try {
-      if (mutation.type === "delivery") {
-        const payload = mutation.payload as Record<string, unknown>;
-        const { error } = await supabase.from("stock_deliveries").insert({
-          business_id: businessId,
-          shop_id: payload.shop_id,
-          product_id: payload.product_id,
-          quantity: payload.quantity,
-          unit_price: payload.unit_price,
-          total_amount: payload.total_amount,
-          delivery_date: payload.delivery_date,
-          notes: payload.notes ?? null,
-          created_by: payload.created_by ?? null,
-        });
-
-        if (error) {
-          throw error;
+    for (const mutation of queue) {
+      processed += 1;
+      await d.pendingMutations.update(mutation.id!, { status: "syncing", error_message: null });
+      try {
+        if (mutation.type === "delivery") await recordDelivery(mutation.payload);
+        else await recordPayment(mutation.payload);
+        await d.pendingMutations.delete(mutation.id!);
+        succeeded += 1;
+      } catch (error) {
+        if (isNetworkError(error)) {
+          await d.pendingMutations.update(mutation.id!, { status: "pending" });
+          break;
         }
-      } else if (mutation.type === "payment") {
-        const payload = mutation.payload as Record<string, unknown>;
-        const { error } = await supabase.from("payments").insert({
-          business_id: businessId,
-          shop_id: payload.shop_id,
-          amount: payload.amount,
-          payment_date: payload.payment_date,
-          method: payload.method,
-          notes: payload.notes ?? null,
-          created_by: payload.created_by ?? null,
+        failed += 1;
+        await d.pendingMutations.update(mutation.id!, {
+          status: "failed",
+          error_message: (error as { message?: string })?.message ?? "Could not sync this entry.",
         });
-
-        if (error) {
-          throw error;
-        }
-      } else if (mutation.type === "reminder") {
-        const payload = mutation.payload as Record<string, unknown>;
-        const { error } = await supabase.from("reminders").insert({
-          business_id: businessId,
-          shop_id: payload.shop_id,
-          type: payload.type,
-          title: payload.title,
-          message: payload.message,
-          due_date: payload.due_date,
-          created_by: payload.created_by ?? null,
-        });
-
-        if (error) {
-          throw error;
-        }
       }
-
-      await offlineDb.pendingMutations.delete(mutation.id!);
-      succeeded += 1;
-    } catch (error) {
-      failed += 1;
-      await offlineDb.pendingMutations.update(mutation.id!, {
-        status: "failed",
-        error_message: isNetworkError(error) ? (error instanceof Error ? error.message : String(error)) : (error as Error).message,
-      });
     }
-  }
-
-  const [operationsRes, productsRes] = await Promise.all([
-    supabase.rpc("get_operations_view", { business_id_input: businessId }),
-    supabase.from("products").select("*").eq("business_id", businessId).order("name"),
-  ]);
-
-  if (!operationsRes.error && !productsRes.error) {
-    const nextRows = (operationsRes.data ?? []) as ShopOperationsRow[];
-    const nextProducts = (productsRes.data ?? []) as Product[];
-    await cacheOperationsSnapshot({ businessId, rows: nextRows, products: nextProducts });
+  } finally {
+    running = false;
+    notifyPendingChanged();
   }
 
   return { processed, succeeded, failed };
-}
-
-export async function triggerOfflineSync(businessId: string) {
-  const supabase = createClient();
-  if (!supabase || !businessId) {
-    return { processed: 0, succeeded: 0, failed: 0 };
-  }
-
-  return syncPendingMutations(supabase, businessId);
 }
