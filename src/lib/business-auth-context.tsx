@@ -145,12 +145,21 @@ export function BusinessAuthProvider({ children }: { children: ReactNode }) {
         clearSignedUrlCache();
       },
       async createBusiness(name: string) {
-        await createBusiness(name);
+        const newBusinessId = await createBusiness(name);
         await refetchMemberships();
+        // Land the caller in the business they just created rather than
+        // wherever refetchMemberships() would otherwise keep them (it only
+        // switches away from a stored active id that's no longer valid —
+        // an existing membership stays valid, so without this a member
+        // creating an *additional* business would stay on their old one).
+        setActiveBusinessIdState(newBusinessId);
+        await setStoredActiveBusinessId(newBusinessId);
       },
       async joinBusiness(code: string) {
-        await redeemBusinessInviteCode(code);
+        const newBusinessId = await redeemBusinessInviteCode(code);
         await refetchMemberships();
+        setActiveBusinessIdState(newBusinessId);
+        await setStoredActiveBusinessId(newBusinessId);
       },
     }),
     [

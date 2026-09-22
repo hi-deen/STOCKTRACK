@@ -16,6 +16,7 @@ import {
   CircleUser,
   CirclePause,
   CirclePlay,
+  CirclePlus,
   Copy,
   Download,
   DoorOpen,
@@ -55,6 +56,7 @@ import {
 // equivalents so screens can be ported with the names unchanged.
 const ICONS = {
   add: Plus,
+  'add-circle-outline': CirclePlus,
   'arrow-back': ArrowLeft,
   'arrow-up': ArrowUp,
   'arrow-undo-outline': Undo2,

@@ -8,7 +8,10 @@ const APP_SHELL = [
   '/apple-touch-icon.png',
 ];
 
-const BUILD_ID = new URL(self.location.href).searchParams.get('build') || 'dev';
+// Substituted by src/app/sw.js/route.ts with a value that changes on every
+// real deploy — see that file's comment for why this file's own bytes
+// need to change for the browser's update check to ever fire at all.
+const BUILD_ID = '__BUILD_ID__';
 const CACHE_NAME = `stocktrack-${BUILD_ID}`;
 const IMAGE_CACHE_NAME = `stocktrack-images-${BUILD_ID}`;
 const IMAGE_CACHE_LIMIT = 50;
@@ -35,7 +38,22 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
+  // Deliberately NOT calling self.skipWaiting() here. Doing so unconditionally
+  // meant every deploy silently force-reloaded every open tab the moment this
+  // worker activated (see the 'activate' handler's self.clients.claim() and
+  // UpdateAvailable.tsx's controllerchange listener) — no consent, no warning,
+  // capable of wiping an in-progress delivery/payment form. This worker now
+  // sits in "waiting" until a client explicitly asks it to activate (see the
+  // 'message' handler below), which UpdateAvailable.tsx only does once the
+  // person clicks "Update now". A first-ever install (no previous worker
+  // controlling this page) is unaffected either way — per spec, there's no
+  // waiting phase to skip when nothing is already in control.
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING' || event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {

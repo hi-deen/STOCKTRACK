@@ -105,6 +105,15 @@ export default function AccountPage() {
         <SettingsDivider />
 
         <SettingsRow
+          icon="add-circle-outline"
+          title="Add a business"
+          subtitle="Create a new one or join with an invite code"
+          onPress={() => router.push('/account/add-business')}
+        />
+
+        <SettingsDivider />
+
+        <SettingsRow
           icon="business-outline"
           title="Business settings"
           subtitle="Details and preferences for this business"
