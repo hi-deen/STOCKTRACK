@@ -178,7 +178,7 @@ export default function ReportsPage() {
             {statCards.map((card) => (
               <Card key={card.label}>
                 <p className="text-sm font-medium text-muted">{card.label}</p>
-                <p className={`mt-1 text-[32px] font-semibold leading-tight tabular-nums ${card.tone}`}>
+                <p className={`mt-1 truncate text-xl font-semibold leading-tight tabular-nums lg:text-[32px] ${card.tone}`}>
                   {card.money ? formatMoney(card.value) : card.value}
                 </p>
               </Card>

@@ -3,7 +3,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export function formatMoney(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
   const sign = value < 0 ? '-' : '';
-  return `${sign}₦${Math.abs(value).toLocaleString()}`;
+  // A thin space after ₦, not none: several web fonts (Inter included, at
+  // larger sizes) give the Naira glyph a right side-bearing that's too
+  // narrow for the digit that follows, so the two visually collide —
+  // it reads as a slash cut through the first digit. Mobile doesn't hit
+  // this (different text renderer/metrics), so this stays web-only.
+  return `${sign}₦ ${Math.abs(value).toLocaleString()}`;
 }
 
 function startOfDay(d: Date): Date {

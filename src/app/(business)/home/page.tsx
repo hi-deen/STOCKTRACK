@@ -85,7 +85,8 @@ export default function BusinessHomePage() {
               const content = (
                 <>
                   <span className="block text-sm font-medium text-muted">{card.label}</span>
-                  <span className={`mt-1 block text-[32px] font-semibold leading-tight tabular-nums ${card.tone ?? 'text-fg'}`}>
+                  <span
+                    className={`mt-1 block truncate text-xl font-semibold leading-tight tabular-nums lg:text-[32px] ${card.tone ?? 'text-fg'}`}>
                     {card.money ? formatMoney(card.value) : card.value.toLocaleString()}
                   </span>
                 </>
