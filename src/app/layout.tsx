@@ -30,14 +30,36 @@ export const viewport: Viewport = {
   themeColor: "#1d4e89",
 };
 
+// Every screen's first data fetch (session check, then whatever the page
+// needs) hits this origin — warming the DNS/TLS handshake before that
+// request is made shaves a full round trip off it, which matters most on
+// higher-latency mobile connections.
+function supabaseOrigin(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabaseUrl = supabaseOrigin();
+
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
+        {supabaseUrl ? (
+          <>
+            <link rel="preconnect" href={supabaseUrl} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={supabaseUrl} />
+          </>
+        ) : null}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="flex min-h-full flex-col">

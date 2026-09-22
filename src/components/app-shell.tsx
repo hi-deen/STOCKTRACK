@@ -1,13 +1,23 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { Icon, type IconName } from '@/components/icon';
-import { OfflineSyncBanner } from '@/components/offline-sync-banner';
 import PWAInstallBanner from '@/components/PWAInstallBanner';
 import { useBusinessAuth } from '@/lib/business-auth-context';
+
+// Split into its own chunk: it pulls in Dexie (the offline-cache database),
+// which every business page would otherwise pay to parse/execute even
+// though only Operations and the delivery/payment forms ever write to it.
+// ssr:false since it only ever has anything to show once IndexedDB has been
+// read, client-side.
+const OfflineSyncBanner = dynamic(
+  () => import('@/components/offline-sync-banner').then((m) => m.OfflineSyncBanner),
+  { ssr: false },
+);
 
 interface NavItem {
   href: string;

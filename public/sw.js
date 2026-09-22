@@ -58,14 +58,32 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
+    // Stale-while-revalidate: a repeat visit paints the last-cached shell
+    // immediately — no network round trip on the critical path — while a
+    // background fetch refreshes the cache for next time. Data on the page
+    // is always fetched live from Supabase regardless of which shell
+    // version was served, so this costs nothing in data freshness. A URL
+    // with nothing cached yet (first visit) still waits on the network,
+    // falling back to a cached page only if that fails outright (offline).
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match('/operations').then((cached) => cached || caches.match('/')))
+      caches.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
+            if (response && response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            }
+            return response;
+          })
+          .catch(() => null);
+
+        if (cached) {
+          event.waitUntil(network);
+          return cached;
+        }
+
+        return network.then((response) => response || caches.match('/operations')).then((response) => response || caches.match('/'));
+      })
     );
     return;
   }

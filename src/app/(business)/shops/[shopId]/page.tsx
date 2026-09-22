@@ -1,6 +1,6 @@
 'use client';
-/* eslint-disable @next/next/no-img-element */
 
+import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
@@ -263,7 +263,11 @@ export default function ShopDetailPage() {
 
             <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
               <div className="space-y-4">
-                {photoUrl ? <img src={photoUrl} alt={shop.name} className="h-48 w-full rounded-lg object-cover" /> : null}
+                {photoUrl ? (
+                  <div className="relative h-48 w-full overflow-hidden rounded-lg">
+                    <Image src={photoUrl} alt={shop.name} fill sizes="(min-width: 1024px) 480px, 100vw" className="object-cover" />
+                  </div>
+                ) : null}
 
                 {/* The single most important number on this screen. */}
                 <Card className="!bg-primary-soft">
