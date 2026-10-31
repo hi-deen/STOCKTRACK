@@ -1,5 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+import { fetchWithInvalidation } from '@/lib/query-cache';
+
 // Single browser client shared by every API module (cookie-backed session via
 // @supabase/ssr so server route handlers can also read it). Placeholder values
 // keep `next build` prerendering from throwing when env vars are absent; real
@@ -7,4 +9,6 @@ import { createBrowserClient } from '@supabase/ssr';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'public-anon-key';
 
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: fetchWithInvalidation },
+});

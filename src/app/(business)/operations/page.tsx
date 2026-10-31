@@ -34,7 +34,7 @@ import {
 import { getOperationsView } from '@/lib/operations-api';
 import { listProductUnits } from '@/lib/product-units-api';
 import { listProducts } from '@/lib/products-api';
-import { useCachedState } from '@/lib/query-cache';
+import { isFresh, useCachedState } from '@/lib/query-cache';
 import { listLowStockItems, listLowStockProducts } from '@/lib/stock-reports-api';
 import { getSignedPhotoUrls } from '@/lib/upload-photo';
 import type { OperationsShopRow } from '@/types/catalog';
@@ -73,18 +73,14 @@ export default function OperationsPage() {
   const router = useRouter();
   const { activeBusinessId, activeMembership, memberships, setActiveBusinessId } = useBusinessAuth();
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [summaryStats, setSummaryStats] = useCachedState<DashboardStats | null>(
-    activeBusinessId ? `today-stats:${activeBusinessId}` : null,
-    null,
-  );
+  const statsKey = activeBusinessId ? `today-stats:${activeBusinessId}` : null;
+  const [summaryStats, setSummaryStats] = useCachedState<DashboardStats | null>(statsKey, null);
   const [lowStockCount, setLowStockCount] = useCachedState<number>(
     activeBusinessId ? `today-lowstock:${activeBusinessId}` : null,
     0,
   );
-  const [rows, setRows] = useCachedState<OperationsShopRow[] | null>(
-    activeBusinessId ? `today-rows:${activeBusinessId}` : null,
-    null,
-  );
+  const rowsKey = activeBusinessId ? `today-rows:${activeBusinessId}` : null;
+  const [rows, setRows] = useCachedState<OperationsShopRow[] | null>(rowsKey, null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [offlineSince, setOfflineSince] = useState<string | null | undefined>(undefined);
   const [query, setQuery] = useState('');
@@ -155,9 +151,9 @@ export default function OperationsPage() {
   }, [activeBusinessId]);
 
   const refreshAll = useCallback(() => {
-    void load();
-    void loadSummary();
-  }, [load, loadSummary]);
+    if (!isFresh(rowsKey)) void load();
+    if (!isFresh(statsKey)) void loadSummary();
+  }, [load, loadSummary, rowsKey, statsKey]);
 
   useFocusEffect(refreshAll);
 

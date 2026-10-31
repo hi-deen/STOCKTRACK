@@ -21,7 +21,7 @@ import { useBusinessAuth } from '@/lib/business-auth-context';
 import { callPhone } from '@/lib/call-phone';
 import { getCollapsedAreas, setCollapsedAreas } from '@/lib/collapsed-areas-storage';
 import { getErrorMessage } from '@/lib/error-message';
-import { useCachedState } from '@/lib/query-cache';
+import { isFresh, useCachedState } from '@/lib/query-cache';
 import { getShopBalances, listShops } from '@/lib/shops-api';
 import { getSignedPhotoUrls } from '@/lib/upload-photo';
 import type { Shop } from '@/types/catalog';
@@ -64,7 +64,8 @@ function ShopsList() {
   const filter = useSearchParams().get('filter');
   const activeFilter: ShopFilter | null = filter === 'active' || filter === 'balance' ? filter : null;
 
-  const [shops, setShops] = useCachedState<Shop[] | null>(activeBusinessId ? `shops:${activeBusinessId}` : null, null);
+  const shopsKey = activeBusinessId ? `shops:${activeBusinessId}` : null;
+  const [shops, setShops] = useCachedState<Shop[] | null>(shopsKey, null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Only populated when the 'balance' filter is on — ids of shops with an
@@ -88,7 +89,11 @@ function ShopsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBusinessId]);
 
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isFresh(shopsKey)) load();
+    }, [load, shopsKey]),
+  );
 
   useEffect(() => {
     if (activeFilter !== 'balance' || !shops || !activeBusinessId) {

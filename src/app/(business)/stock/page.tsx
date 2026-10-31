@@ -18,7 +18,7 @@ import { useFocusEffect } from '@/hooks/use-focus-effect';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
 import { formatMoney } from '@/lib/format';
-import { useCachedState } from '@/lib/query-cache';
+import { isFresh, useCachedState } from '@/lib/query-cache';
 import { listStockItems } from '@/lib/stock-items-api';
 import { getFinancialSummary, listLowStockProducts } from '@/lib/stock-reports-api';
 import type { Product } from '@/types/catalog';
@@ -45,10 +45,8 @@ export default function StockHomePage() {
     activeBusinessId ? `stock-low-products:${activeBusinessId}` : null,
     [],
   );
-  const [summary, setSummary] = useCachedState<FinancialSummary | null>(
-    activeBusinessId ? `stock-summary:${activeBusinessId}` : null,
-    null,
-  );
+  const summaryKey = activeBusinessId ? `stock-summary:${activeBusinessId}` : null;
+  const [summary, setSummary] = useCachedState<FinancialSummary | null>(summaryKey, null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -70,7 +68,11 @@ export default function StockHomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBusinessId]);
 
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isFresh(summaryKey)) load();
+    }, [load, summaryKey]),
+  );
 
   if (!activeBusinessId) return null;
 
