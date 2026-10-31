@@ -139,12 +139,12 @@ export default function ShopDetailPage() {
     }
   }
 
-  async function handleEditDeliverySubmit(productId: string, sellingUnitId: string, quantity: number, reason: string) {
+  async function handleEditDeliverySubmit(productId: string, sellingUnitId: string, quantity: number, reason: string, date: string | null) {
     if (!editDeliveryTarget) return;
     setEditLoading(true);
     setEditError(null);
     try {
-      await editDelivery(editDeliveryTarget.id, productId, sellingUnitId, quantity, reason);
+      await editDelivery(editDeliveryTarget.id, productId, sellingUnitId, quantity, reason, date);
       setEditDeliveryTarget(null);
       await load();
     } catch (err) {
@@ -154,12 +154,12 @@ export default function ShopDetailPage() {
     }
   }
 
-  async function handleEditPaymentSubmit(amount: number, reason: string) {
+  async function handleEditPaymentSubmit(amount: number, reason: string, date: string | null) {
     if (!editPaymentTarget) return;
     setEditLoading(true);
     setEditError(null);
     try {
-      await editPayment(editPaymentTarget.id, amount, reason);
+      await editPayment(editPaymentTarget.id, amount, reason, date);
       setEditPaymentTarget(null);
       await load();
     } catch (err) {
@@ -434,6 +434,8 @@ export default function ShopDetailPage() {
         initialProductId={editDeliveryTarget?.product_id ?? null}
         initialSellingUnitId={editDeliveryTarget?.selling_unit_id ?? null}
         initialQuantity={editDeliveryTarget?.quantity ?? 0}
+        initialDate={editDeliveryTarget?.delivery_date ?? ''}
+        canEditDate={isOwner}
         loading={editLoading}
         error={editError}
         onCancel={() => {
@@ -446,6 +448,8 @@ export default function ShopDetailPage() {
       <EditPaymentModal
         visible={!!editPaymentTarget}
         initialAmount={editPaymentTarget?.amount ?? 0}
+        initialDate={editPaymentTarget?.payment_date ?? ''}
+        canEditDate={isOwner}
         loading={editLoading}
         error={editError}
         onCancel={() => {

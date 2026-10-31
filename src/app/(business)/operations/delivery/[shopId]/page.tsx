@@ -14,6 +14,7 @@ import { useToast } from '@/components/toast';
 import { useFocusEffect } from '@/hooks/use-focus-effect';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
+import { toDateString } from '@/lib/format';
 import { formatMoney } from '@/lib/format';
 import {
   cacheProductUnits,
@@ -43,6 +44,7 @@ function RecordDelivery() {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState(() => toDateString(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -103,6 +105,7 @@ function RecordDelivery() {
     !!shopId &&
     !!selectedProduct &&
     !!selectedUnit &&
+    !!deliveryDate &&
     Number.isFinite(quantityNumber) &&
     quantityNumber > 0 &&
     !submitting;
@@ -120,6 +123,7 @@ function RecordDelivery() {
       unitPrice: selectedUnit.default_price,
       notes: notes.trim() || null,
       createdBy: userId,
+      deliveryDate,
     };
     try {
       await recordDelivery(input);
@@ -203,6 +207,9 @@ function RecordDelivery() {
             {selectedUnit && quantityNumber > 0 ? (
               <p className="tabular-nums text-muted">Total: {formatMoney(quantityNumber * selectedUnit.default_price)}</p>
             ) : null}
+
+            <SectionLabel>Date</SectionLabel>
+            <FormInput type="date" value={deliveryDate} max={toDateString(new Date())} onChange={(e) => setDeliveryDate(e.target.value)} />
 
             <SectionLabel>Notes</SectionLabel>
             <FormTextarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />

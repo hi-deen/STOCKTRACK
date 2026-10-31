@@ -24,6 +24,8 @@ export interface RecordDeliveryInput {
   unitPrice: number;
   notes: string | null;
   createdBy: string | null;
+  // YYYY-MM-DD; defaults to today (DB default) when omitted.
+  deliveryDate?: string;
 }
 
 export async function recordDelivery(input: RecordDeliveryInput): Promise<void> {
@@ -37,6 +39,7 @@ export async function recordDelivery(input: RecordDeliveryInput): Promise<void> 
     total_amount: input.quantity * input.unitPrice,
     notes: input.notes,
     created_by: input.createdBy,
+    ...(input.deliveryDate ? { delivery_date: input.deliveryDate } : {}),
   });
   if (error) throw error;
 }
@@ -48,6 +51,8 @@ export interface RecordPaymentInput {
   method: string | null;
   notes: string | null;
   createdBy: string | null;
+  // YYYY-MM-DD; defaults to today (DB default) when omitted.
+  paymentDate?: string;
 }
 
 export async function recordPayment(input: RecordPaymentInput): Promise<void> {
@@ -58,6 +63,7 @@ export async function recordPayment(input: RecordPaymentInput): Promise<void> {
     method: input.method,
     notes: input.notes,
     created_by: input.createdBy,
+    ...(input.paymentDate ? { payment_date: input.paymentDate } : {}),
   });
   if (error) throw error;
 }
@@ -74,7 +80,9 @@ export async function editDelivery(
   productId: string,
   sellingUnitId: string,
   quantity: number,
-  reason: string
+  reason: string,
+  // Owner-only: the RPC rejects a date change from non-owners.
+  deliveryDate: string | null = null
 ): Promise<void> {
   const { error } = await supabase.rpc('edit_stock_delivery', {
     delivery_id_input: deliveryId,
@@ -82,15 +90,22 @@ export async function editDelivery(
     selling_unit_id_input: sellingUnitId,
     quantity_input: quantity,
     reason_input: reason,
+    delivery_date_input: deliveryDate,
   });
   if (error) throw error;
 }
 
-export async function editPayment(paymentId: string, amount: number, reason: string): Promise<void> {
+export async function editPayment(
+  paymentId: string,
+  amount: number,
+  reason: string,
+  paymentDate: string | null = null
+): Promise<void> {
   const { error } = await supabase.rpc('edit_payment', {
     payment_id_input: paymentId,
     amount_input: amount,
     reason_input: reason,
+    payment_date_input: paymentDate,
   });
   if (error) throw error;
 }

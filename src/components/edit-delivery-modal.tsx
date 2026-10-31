@@ -8,6 +8,7 @@ import { Field, FormInput, FormTextarea } from '@/components/form-input';
 import { MessageBox } from '@/components/message-box';
 import { PrimaryButton } from '@/components/primary-button';
 import { SectionLabel } from '@/components/page';
+import { toDateString } from '@/lib/format';
 import { listProductUnits } from '@/lib/product-units-api';
 import type { Product } from '@/types/catalog';
 import type { ProductUnit } from '@/types/stock';
@@ -18,10 +19,13 @@ interface EditDeliveryModalProps {
   initialProductId: string | null;
   initialSellingUnitId: string | null;
   initialQuantity: number;
+  initialDate: string;
+  // Only owners may change a record's date.
+  canEditDate: boolean;
   loading?: boolean;
   error?: string | null;
   onCancel: () => void;
-  onSubmit: (productId: string, sellingUnitId: string, quantity: number, reason: string) => void;
+  onSubmit: (productId: string, sellingUnitId: string, quantity: number, reason: string, date: string | null) => void;
 }
 
 // Pre-fills with the record's current values; reopening resets them so a
@@ -32,6 +36,8 @@ export function EditDeliveryModal({
   initialProductId,
   initialSellingUnitId,
   initialQuantity,
+  initialDate,
+  canEditDate,
   loading,
   error,
   onCancel,
@@ -42,6 +48,7 @@ export function EditDeliveryModal({
   const [units, setUnits] = useState<ProductUnit[]>([]);
   const [quantity, setQuantity] = useState(String(initialQuantity));
   const [reason, setReason] = useState('');
+  const [date, setDate] = useState(initialDate);
 
   useEffect(() => {
     if (visible) {
@@ -49,8 +56,9 @@ export function EditDeliveryModal({
       setSellingUnitId(initialSellingUnitId);
       setQuantity(String(initialQuantity));
       setReason('');
+      setDate(initialDate);
     }
-  }, [visible, initialProductId, initialSellingUnitId, initialQuantity]);
+  }, [visible, initialProductId, initialSellingUnitId, initialQuantity, initialDate]);
 
   useEffect(() => {
     if (!visible || !productId) {
@@ -75,7 +83,7 @@ export function EditDeliveryModal({
 
   const quantityNumber = Number(quantity);
   const canSubmit =
-    !!productId && !!sellingUnitId && Number.isFinite(quantityNumber) && quantityNumber > 0 && reason.trim().length > 0;
+    !!productId && !!sellingUnitId && Number.isFinite(quantityNumber) && quantityNumber > 0 && reason.trim().length > 0 && (!canEditDate || !!date);
 
   return (
     <BottomSheet visible={visible} onClose={onCancel} title="Edit delivery">
@@ -112,6 +120,11 @@ export function EditDeliveryModal({
         <Field label="Quantity">
           <FormInput value={quantity} onChange={(e) => setQuantity(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" />
         </Field>
+        {canEditDate ? (
+          <Field label="Date">
+            <FormInput type="date" value={date} max={toDateString(new Date())} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+        ) : null}
         <Field label="Reason for edit">
           <FormTextarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="What changed and why" />
         </Field>
@@ -125,7 +138,7 @@ export function EditDeliveryModal({
           <div className="min-w-[130px]">
             <PrimaryButton
               label="Save changes"
-              onClick={() => productId && sellingUnitId && onSubmit(productId, sellingUnitId, quantityNumber, reason.trim())}
+              onClick={() => productId && sellingUnitId && onSubmit(productId, sellingUnitId, quantityNumber, reason.trim(), canEditDate ? date : null)}
               disabled={!canSubmit}
               loading={loading}
             />

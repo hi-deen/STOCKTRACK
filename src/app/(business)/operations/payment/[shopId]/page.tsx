@@ -11,6 +11,7 @@ import { ScreenHeader } from '@/components/screen-header';
 import { useToast } from '@/components/toast';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
+import { toDateString } from '@/lib/format';
 import { isNetworkError, queueMutation } from '@/lib/offline/db';
 import { recordPayment } from '@/lib/operations-api';
 
@@ -24,12 +25,13 @@ function RecordPayment() {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentDate, setPaymentDate] = useState(() => toDateString(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const amountNumber = Number(amount);
   const canSubmit =
-    !!activeBusinessId && !!shopId && Number.isFinite(amountNumber) && amountNumber > 0 && !submitting;
+    !!activeBusinessId && !!shopId && !!paymentDate && Number.isFinite(amountNumber) && amountNumber > 0 && !submitting;
 
   async function handleSubmit() {
     if (!canSubmit || !activeBusinessId || !shopId) return;
@@ -42,6 +44,7 @@ function RecordPayment() {
       method: method.trim() || null,
       notes: notes.trim() || null,
       createdBy: userId,
+      paymentDate,
     };
     try {
       await recordPayment(input);
@@ -79,6 +82,9 @@ function RecordPayment() {
 
         <SectionLabel>Method</SectionLabel>
         <FormInput value={method} onChange={(e) => setMethod(e.target.value)} placeholder="e.g. cash, transfer" />
+
+        <SectionLabel>Date</SectionLabel>
+        <FormInput type="date" value={paymentDate} max={toDateString(new Date())} onChange={(e) => setPaymentDate(e.target.value)} />
 
         <SectionLabel>Notes</SectionLabel>
         <FormTextarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
