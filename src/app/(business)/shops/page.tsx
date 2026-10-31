@@ -22,7 +22,7 @@ import { callPhone } from '@/lib/call-phone';
 import { getCollapsedAreas, setCollapsedAreas } from '@/lib/collapsed-areas-storage';
 import { getErrorMessage } from '@/lib/error-message';
 import { useCachedState } from '@/lib/query-cache';
-import { getShopBalance, listShops } from '@/lib/shops-api';
+import { getShopBalances, listShops } from '@/lib/shops-api';
 import { getSignedPhotoUrls } from '@/lib/upload-photo';
 import type { Shop } from '@/types/catalog';
 
@@ -91,7 +91,7 @@ function ShopsList() {
   useFocusEffect(load);
 
   useEffect(() => {
-    if (activeFilter !== 'balance' || !shops) {
+    if (activeFilter !== 'balance' || !shops || !activeBusinessId) {
       setBalanceShopIds(null);
       setBalanceError(null);
       return;
@@ -99,9 +99,9 @@ function ShopsList() {
     let cancelled = false;
     setBalanceLoading(true);
     setBalanceError(null);
-    Promise.all(shops.map(async (shop) => ({ id: shop.id, balance: await getShopBalance(shop.id) })))
+    getShopBalances(activeBusinessId)
       .then((results) => {
-        if (!cancelled) setBalanceShopIds(new Set(results.filter((r) => r.balance > 0).map((r) => r.id)));
+        if (!cancelled) setBalanceShopIds(new Set(results.filter((r) => r.balance > 0).map((r) => r.shop_id)));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -114,7 +114,7 @@ function ShopsList() {
     return () => {
       cancelled = true;
     };
-  }, [activeFilter, shops]);
+  }, [activeFilter, shops, activeBusinessId]);
 
   useEffect(() => {
     if (!shops || shops.length === 0) {

@@ -56,6 +56,12 @@ export async function getShopBalance(shopId: string): Promise<number> {
   return (data as number) ?? 0;
 }
 
+export async function getShopBalances(businessId: string): Promise<{ shop_id: string; balance: number }[]> {
+  const { data, error } = await supabase.rpc('get_shop_balances', { business_id_input: businessId });
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function listShopDeliveries(
   shopId: string,
   limit = 25,
