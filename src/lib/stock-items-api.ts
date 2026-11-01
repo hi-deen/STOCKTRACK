@@ -18,6 +18,12 @@ export async function listStockItems(businessId: string): Promise<StockItem[]> {
   return data ?? [];
 }
 
+export async function getStockItem(stockItemId: string): Promise<StockItem> {
+  const { data, error } = await supabase.from('stock_items').select('*').eq('id', stockItemId).single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createStockItem(businessId: string, input: StockItemInput): Promise<StockItem> {
   const { data, error } = await supabase
     .from('stock_items')

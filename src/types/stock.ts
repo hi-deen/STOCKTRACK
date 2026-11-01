@@ -46,6 +46,8 @@ export interface StockPurchase {
 
 export type StockMovementReason =
   | 'purchase'
+  | 'purchase_edit_reversal'
+  | 'purchase_delete_reversal'
   | 'batch_production_in'
   | 'batch_production_out'
   | 'batch_edit_reversal'

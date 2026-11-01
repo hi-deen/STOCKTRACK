@@ -137,8 +137,8 @@ export function BatchFormFields({ state, setState, products, stockItems, preferr
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Batch name">
-          <FormInput value={state.name} onChange={(e) => patch({ name: e.target.value })} placeholder="e.g. Batch 1 - bread" />
+        <Field label="Name">
+          <FormInput value={state.name} onChange={(e) => patch({ name: e.target.value })} placeholder="e.g. Monday bread" />
         </Field>
         <Field label="Production date">
           <FormInput

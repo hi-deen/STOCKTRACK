@@ -28,6 +28,8 @@ export const AUDIT_ACTIONS = [
   'business.ownership_transferred',
   'business.deleted',
   'shops.imported',
+  'stock_purchase.edited',
+  'stock_purchase.deleted',
 ] as const;
 
 export const AUDIT_FILTER_GROUPS: { label: string; actions: string[] }[] = [
@@ -51,6 +53,7 @@ export const AUDIT_FILTER_GROUPS: { label: string; actions: string[] }[] = [
     ],
   },
   { label: 'Products', actions: ['product.created', 'product.updated', 'product.deleted'] },
+  { label: 'Purchases', actions: ['stock_purchase.edited', 'stock_purchase.deleted'] },
   { label: 'Members', actions: ['member.joined', 'member.removed'] },
   {
     label: 'Riders',

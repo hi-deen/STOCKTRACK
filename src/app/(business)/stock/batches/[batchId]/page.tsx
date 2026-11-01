@@ -68,7 +68,7 @@ export default function BatchDetailPage() {
       setStockItems(itemsData);
       setLoadError(null);
     } catch (err) {
-      setLoadError(getErrorMessage(err, 'Could not load this batch.'));
+      setLoadError(getErrorMessage(err, 'Could not load this production run.'));
     }
   }, [activeBusinessId, batchId, editing]);
 
@@ -112,10 +112,10 @@ export default function BatchDetailPage() {
     try {
       await deleteBatch(batchId, reason);
       setDeleteReasonOpen(false);
-      toast.show('Batch deleted');
+      toast.show('Production run deleted');
       router.back();
     } catch (err) {
-      setActionError(getErrorMessage(err, 'Could not delete this batch.'));
+      setActionError(getErrorMessage(err, 'Could not delete this production run.'));
     } finally {
       setActionLoading(false);
     }
@@ -124,9 +124,9 @@ export default function BatchDetailPage() {
   const overflowActions: HeaderAction[] =
     batch && !editing
       ? [
-          { icon: 'create-outline', label: 'Edit batch', onPress: startEditing },
+          { icon: 'create-outline', label: 'Edit production run', onPress: startEditing },
           ...(isOwner
-            ? [{ icon: 'trash-outline' as const, label: 'Delete batch', onPress: () => setDeleteReasonOpen(true) }]
+            ? [{ icon: 'trash-outline' as const, label: 'Delete production run', onPress: () => setDeleteReasonOpen(true) }]
             : []),
         ]
       : [];
@@ -135,7 +135,7 @@ export default function BatchDetailPage() {
 
   return (
     <>
-      <ScreenHeader title={editing ? 'Edit batch' : (batch?.name ?? 'Batch')} back overflowActions={overflowActions} />
+      <ScreenHeader title={editing ? 'Edit production run' : (batch?.name ?? 'Production run')} back overflowActions={overflowActions} />
       <Page narrow>
         {!batch && !loadError ? <Skeleton height={96} radius={16} /> : null}
         {loadError ? <MessageBox tone="danger" message={loadError} /> : null}
@@ -223,9 +223,9 @@ export default function BatchDetailPage() {
 
       <PromptModal
         visible={deleteReasonOpen}
-        title="Delete batch?"
-        description="This puts the materials/packaging and output stock back to how they were before this batch. Its history stays visible, just marked deleted."
-        submitLabel="Delete batch"
+        title="Delete production run?"
+        description="This puts the materials/packaging and output stock back to how they were before this production run. Its history stays visible, just marked deleted."
+        submitLabel="Delete production run"
         loading={actionLoading}
         error={actionError}
         onCancel={() => setDeleteReasonOpen(false)}

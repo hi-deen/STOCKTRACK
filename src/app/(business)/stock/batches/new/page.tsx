@@ -52,10 +52,10 @@ export default function NewBatchPage() {
     setSubmitError(null);
     try {
       await createBatch(activeBusinessId, toBatchInput(form));
-      toast.show('Batch created');
+      toast.show('Production run created');
       router.back();
     } catch (err) {
-      setSubmitError(getErrorMessage(err, 'Could not create this batch.'));
+      setSubmitError(getErrorMessage(err, 'Could not create this production run.'));
     } finally {
       setSubmitting(false);
     }
@@ -63,12 +63,12 @@ export default function NewBatchPage() {
 
   return (
     <>
-      <ScreenHeader title="New batch" back />
+      <ScreenHeader title="New production run" back />
       <Page narrow>
         {loadError ? <MessageBox tone="danger" message={loadError} /> : null}
         <BatchFormFields state={form} setState={setForm} products={products} stockItems={stockItems} />
         {submitError ? <MessageBox tone="danger" message={submitError} /> : null}
-        <PrimaryButton label="Create batch" onClick={handleSubmit} disabled={!canSubmit} loading={submitting} />
+        <PrimaryButton label="Create production run" onClick={handleSubmit} disabled={!canSubmit} loading={submitting} />
       </Page>
     </>
   );

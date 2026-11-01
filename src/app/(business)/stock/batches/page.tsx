@@ -37,7 +37,7 @@ export default function BatchesListPage() {
       setProducts(new Map(productsData.map((p) => [p.id, p])));
       setLoadError(null);
     } catch (err) {
-      setLoadError(getErrorMessage(err, 'Could not load batches.'));
+      setLoadError(getErrorMessage(err, 'Could not load production runs.'));
     }
   }, [activeBusinessId]);
 
@@ -47,7 +47,7 @@ export default function BatchesListPage() {
 
   return (
     <>
-      <ScreenHeader title="Batches" back primaryActions={[{ icon: 'refresh', label: 'Refresh', onPress: load }]} />
+      <ScreenHeader title="Production runs" back primaryActions={[{ icon: 'refresh', label: 'Refresh', onPress: load }]} />
       <Page narrow>
         {batches === null && !loadError ? <SkeletonRows /> : null}
         {loadError ? <MessageBox tone="danger" message={loadError} /> : null}
@@ -55,9 +55,9 @@ export default function BatchesListPage() {
         {batches !== null && batches.length === 0 ? (
           <EmptyState
             icon="construct-outline"
-            title="No batches yet"
-            message="Create your first production batch."
-            actionLabel="New batch"
+            title="No production runs yet"
+            message="Record your first production run."
+            actionLabel="New production run"
             onAction={() => router.push('/stock/batches/new')}
           />
         ) : null}
@@ -79,7 +79,7 @@ export default function BatchesListPage() {
           ))}
         </div>
       </Page>
-      <Fab label="New batch" onPress={() => router.push('/stock/batches/new')} />
+      <Fab label="New production run" onPress={() => router.push('/stock/batches/new')} />
       <BackToTopButton />
     </>
   );
