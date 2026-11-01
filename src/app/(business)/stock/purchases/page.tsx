@@ -5,22 +5,23 @@ import { useCallback, useState } from 'react';
 
 import { BackToTopButton } from '@/components/back-to-top-button';
 import { ActionSheet } from '@/components/bottom-sheet';
-import { ChipRow } from '@/components/chip-row';
 import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
 import { FormInput } from '@/components/form-input';
 import { ListRow } from '@/components/list-row';
 import { MessageBox } from '@/components/message-box';
 import { Page } from '@/components/page';
+import { PeriodFilter } from '@/components/period-filter';
 import { PromptModal } from '@/components/prompt-modal';
 import { ScreenHeader } from '@/components/screen-header';
 import { ShowMoreControls } from '@/components/show-more-controls';
 import { SkeletonRows } from '@/components/skeleton';
 import { useToast } from '@/components/toast';
 import { useFocusEffect } from '@/hooks/use-focus-effect';
+import { usePeriod } from '@/hooks/use-period';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
-import { formatDate, formatMoney, toDateString } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import { listStockItems } from '@/lib/stock-items-api';
 import { deletePurchase, listPurchases, purchaseQuantityLabel } from '@/lib/stock-purchases-api';
 import type { StockItem, StockPurchase } from '@/types/stock';
@@ -28,16 +29,6 @@ import type { StockItem, StockPurchase } from '@/types/stock';
 const PAGE_SIZE = 50;
 // Search and the period filter run in the browser over this many rows.
 const FETCH_LIMIT = 500;
-
-type Period = 'all' | 'month' | 'last_month';
-
-function monthBounds(offset: number): { start: string; end: string } {
-  const now = new Date();
-  return {
-    start: toDateString(new Date(now.getFullYear(), now.getMonth() + offset, 1)),
-    end: toDateString(new Date(now.getFullYear(), now.getMonth() + offset + 1, 0)),
-  };
-}
 
 export default function PurchasesListPage() {
   const router = useRouter();
@@ -49,7 +40,7 @@ export default function PurchasesListPage() {
   const [items, setItems] = useState<Map<string, StockItem>>(new Map());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [period, setPeriod] = useState<Period>('all');
+  const period = usePeriod('all');
   const [shownCount, setShownCount] = useState(PAGE_SIZE);
   const [selected, setSelected] = useState<StockPurchase | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -90,9 +81,8 @@ export default function PurchasesListPage() {
   if (!activeBusinessId) return null;
 
   const searchText = search.trim().toLowerCase();
-  const bounds = period === 'all' ? null : monthBounds(period === 'month' ? 0 : -1);
   const filtered = (purchases ?? []).filter((p) => {
-    if (bounds && (p.purchase_date < bounds.start || p.purchase_date > bounds.end)) return false;
+    if (period.preset !== 'all' && (p.purchase_date < period.start || p.purchase_date > period.end)) return false;
     if (searchText === '') return true;
     const itemName = items.get(p.stock_item_id)?.name ?? '';
     return `${itemName} ${p.supplier ?? ''}`.toLowerCase().includes(searchText);
@@ -129,18 +119,7 @@ export default function PurchasesListPage() {
               }}
               placeholder="Search item or supplier"
             />
-            <ChipRow
-              options={[
-                { value: 'all', label: 'All' },
-                { value: 'month', label: 'This month' },
-                { value: 'last_month', label: 'Last month' },
-              ]}
-              value={period}
-              onChange={(next) => {
-                setPeriod(next);
-                setShownCount(PAGE_SIZE);
-              }}
-            />
+            <PeriodFilter period={period} includeAll />
           </div>
         ) : null}
 

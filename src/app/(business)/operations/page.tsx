@@ -8,17 +8,19 @@ import { BackToTopButton } from '@/components/back-to-top-button';
 import { Badge } from '@/components/badge';
 import { Dialog } from '@/components/bottom-sheet';
 import { BusinessSwitcherModal } from '@/components/business-switcher-modal';
-import { Card } from '@/components/card';
+import { Card, PressableCard } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
 import { FormInput } from '@/components/form-input';
 import { ListRow } from '@/components/list-row';
 import { MessageBox } from '@/components/message-box';
 import { Page } from '@/components/page';
+import { PeriodFilter } from '@/components/period-filter';
 import { PrimaryButton } from '@/components/primary-button';
 import { ScreenHeader } from '@/components/screen-header';
 import { ShopThumbnail } from '@/components/shop-thumbnail';
 import { SkeletonRows } from '@/components/skeleton';
 import { useFocusEffect } from '@/hooks/use-focus-effect';
+import { usePeriod } from '@/hooks/use-period';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getCollapsedAreas, setCollapsedAreas } from '@/lib/collapsed-areas-storage';
 import { getDashboardStats } from '@/lib/dashboard-api';
@@ -35,6 +37,7 @@ import { getOperationsView } from '@/lib/operations-api';
 import { listProductUnits } from '@/lib/product-units-api';
 import { listProducts } from '@/lib/products-api';
 import { isFresh, useCachedState } from '@/lib/query-cache';
+import { getReportSummary } from '@/lib/reports-api';
 import { listLowStockItems, listLowStockProducts } from '@/lib/stock-reports-api';
 import { getSignedPhotoUrls } from '@/lib/upload-photo';
 import type { OperationsShopRow } from '@/types/catalog';
@@ -75,6 +78,27 @@ export default function OperationsPage() {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const statsKey = activeBusinessId ? `today-stats:${activeBusinessId}` : null;
   const [summaryStats, setSummaryStats] = useCachedState<DashboardStats | null>(statsKey, null);
+  const period = usePeriod();
+  const [periodPayments, setPeriodPayments] = useState<number | null>(null);
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+
+  // "This month" comes with the main stats, which also work offline on the
+  // web; any other period is fetched on its own. Re-runs when the stats do.
+  useEffect(() => {
+    if (!activeBusinessId || period.preset === 'month') return;
+    let active = true;
+    setPeriodPayments(null);
+    getReportSummary(activeBusinessId, period.start, period.end)
+      .then((data) => {
+        if (active) setPeriodPayments(data.total_payments_collected);
+      })
+      .catch(() => {
+        if (active) setPeriodPayments(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeBusinessId, period.preset, period.start, period.end, summaryStats]);
   const [lowStockCount, setLowStockCount] = useCachedState<number>(
     activeBusinessId ? `today-lowstock:${activeBusinessId}` : null,
     0,
@@ -332,12 +356,16 @@ export default function OperationsPage() {
               <p className="text-sm font-medium text-muted">Outstanding</p>
               <p className="text-sm font-bold tabular-nums text-danger">{formatMoney(summaryStats.total_outstanding)}</p>
             </Card>
-            <Card>
-              <p className="text-sm font-medium text-muted">Payments this month</p>
+            <PressableCard onClick={() => setPeriodSheetOpen(true)}>
+              <p className="text-sm font-medium text-muted">Payments · {period.label}</p>
               <p className="text-sm font-bold tabular-nums text-success">
-                {formatMoney(summaryStats.total_payments_this_month)}
+                {period.preset === 'month'
+                  ? formatMoney(summaryStats.total_payments_this_month)
+                  : periodPayments === null
+                    ? '…'
+                    : formatMoney(periodPayments)}
               </p>
-            </Card>
+            </PressableCard>
           </div>
         ) : null}
 
@@ -389,6 +417,9 @@ export default function OperationsPage() {
           })
         )}
       </Page>
+      <Dialog visible={periodSheetOpen} onClose={() => setPeriodSheetOpen(false)} title="Show payments for">
+        <PeriodFilter period={period} />
+      </Dialog>
       <BackToTopButton />
 
       <BusinessSwitcherModal

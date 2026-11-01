@@ -15,10 +15,12 @@ import { Icon } from '@/components/icon';
 import { ListRow } from '@/components/list-row';
 import { MessageBox } from '@/components/message-box';
 import { Page, SectionLabel } from '@/components/page';
+import { PeriodFilter } from '@/components/period-filter';
 import { ScreenHeader } from '@/components/screen-header';
 import { SkeletonRows } from '@/components/skeleton';
 import { StockLevelBar } from '@/components/stock-level-bar';
 import { useFocusEffect } from '@/hooks/use-focus-effect';
+import { usePeriod } from '@/hooks/use-period';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
 import { formatMoney } from '@/lib/format';
@@ -28,28 +30,17 @@ import { getFinancialSummary, listLowStockProducts } from '@/lib/stock-reports-a
 import type { Product } from '@/types/catalog';
 import type { FinancialSummary, StockItem, StockItemCategory } from '@/types/stock';
 
-function toDateString(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function monthStart(): Date {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
 export default function StockHomePage() {
   const router = useRouter();
   const { activeBusinessId } = useBusinessAuth();
+  const period = usePeriod();
 
   const [items, setItems] = useCachedState<StockItem[] | null>(activeBusinessId ? `stock-items:${activeBusinessId}` : null, null);
   const [lowStockProducts, setLowStockProducts] = useCachedState<Product[]>(
     activeBusinessId ? `stock-low-products:${activeBusinessId}` : null,
     [],
   );
-  const summaryKey = activeBusinessId ? `stock-summary:${activeBusinessId}` : null;
+  const summaryKey = activeBusinessId ? `stock-summary:${activeBusinessId}:${period.start}:${period.end}` : null;
   const [summary, setSummary] = useCachedState<FinancialSummary | null>(summaryKey, null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -64,7 +55,7 @@ export default function StockHomePage() {
       const [itemsData, lowProducts, summaryData] = await Promise.all([
         listStockItems(activeBusinessId),
         listLowStockProducts(activeBusinessId),
-        getFinancialSummary(activeBusinessId, toDateString(monthStart()), toDateString(new Date())),
+        getFinancialSummary(activeBusinessId, period.start, period.end),
       ]);
       setItems(itemsData);
       setLowStockProducts(lowProducts);
@@ -74,7 +65,7 @@ export default function StockHomePage() {
       setLoadError(getErrorMessage(err, 'Could not load stock.'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeBusinessId]);
+  }, [activeBusinessId, period.start, period.end]);
 
   useFocusEffect(
     useCallback(() => {
@@ -143,9 +134,11 @@ export default function StockHomePage() {
           </MessageBox>
         ) : null}
 
+        <SectionLabel>Money summary</SectionLabel>
+        <PeriodFilter period={period} />
+
         {summary ? (
           <>
-            <SectionLabel>This month</SectionLabel>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {[
                 ['Purchases', summary.total_purchases],
