@@ -16,6 +16,7 @@ import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
 import { hapticTap } from '@/lib/haptics';
 import { useThemePreference, type ThemePreference } from '@/lib/theme-preference-context';
+import { roleLabel } from '@/lib/permissions';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'System default' },
@@ -27,7 +28,7 @@ export default function AccountPage() {
   const router = useRouter();
   const toast = useToast();
   const { preference, setPreference } = useThemePreference();
-  const { userEmail, memberships, activeBusinessId, activeMembership, setActiveBusinessId, refetchMemberships, signOut } =
+  const { userEmail, memberships, activeBusinessId, activeMembership, setActiveBusinessId, refetchMemberships, signOut, can } =
     useBusinessAuth();
   const isOwner = activeMembership?.role === 'owner';
 
@@ -78,7 +79,7 @@ export default function AccountPage() {
           ) : null}
         </span>
         {userEmail ? <span className="block truncate text-muted">{userEmail}</span> : null}
-        <span className="block text-sm font-medium text-muted">{isOwner ? 'Owner' : 'Staff'}</span>
+        <span className="block text-sm font-medium text-muted">{roleLabel(activeMembership?.role)}</span>
       </span>
     </>
   );
@@ -122,10 +123,18 @@ export default function AccountPage() {
         <SettingsRow
           icon="people-outline"
           title="Members"
-          subtitle="Staff who can access this business"
+          subtitle="People who can access this business"
           onPress={() => router.push('/account/members')}
         />
         {isOwner ? (
+          <SettingsRow
+            icon="people-outline"
+            title="Roles & permissions"
+            subtitle="Choose what admins, staff and observers can do"
+            onPress={() => router.push('/account/roles')}
+          />
+        ) : null}
+        {can('manage_riders') ? (
           <SettingsRow
             icon="bicycle-outline"
             title="Riders"

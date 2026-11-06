@@ -6,7 +6,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { createBusiness, fetchMyMemberships, redeemBusinessInviteCode } from '@/lib/business-api';
 import { getStoredActiveBusinessId, setStoredActiveBusinessId } from '@/lib/active-business-storage';
 import { getErrorMessage } from '@/lib/error-message';
-import { clearQueryCache } from '@/lib/query-cache';
+import { getMyPermissions } from '@/lib/members-api';
+import type { Permission } from '@/lib/permissions';
+import { clearQueryCache, useCachedState } from '@/lib/query-cache';
 import { supabase } from '@/lib/supabase';
 import { clearSignedUrlCache } from '@/lib/upload-photo';
 import type { BusinessMembership } from '@/types/business';
@@ -21,6 +23,8 @@ interface BusinessAuthContextValue {
   membershipsError: string | null;
   activeBusinessId: string | null;
   activeMembership: BusinessMembership | null;
+  // Whether the signed-in member may do this in the active business.
+  can: (permission: Permission) => boolean;
   setActiveBusinessId: (id: string) => Promise<void>;
   refetchMemberships: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ needsVerification: boolean }>;
@@ -43,6 +47,29 @@ export function BusinessAuthProvider({ children }: { children: ReactNode }) {
   const [membershipsLoading, setMembershipsLoading] = useState(false);
   const [membershipsError, setMembershipsError] = useState<string | null>(null);
   const [activeBusinessId, setActiveBusinessIdState] = useState<string | null>(null);
+
+  // What the member may do in the active business, saved with the query
+  // cache so the right buttons show offline. The database enforces the same
+  // rules either way.
+  const [permissionList, setPermissionList] = useCachedState<Permission[]>(
+    activeBusinessId ? `permissions:${activeBusinessId}` : null,
+    []
+  );
+
+  useEffect(() => {
+    if (!activeBusinessId || !session?.user?.id) return;
+    let active = true;
+    getMyPermissions(activeBusinessId)
+      .then((list) => {
+        if (active) setPermissionList(list);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+    // Re-checked whenever memberships reload, e.g. after a role change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBusinessId, session?.user?.id, memberships]);
 
   useEffect(() => {
     let mounted = true;
@@ -98,6 +125,8 @@ export function BusinessAuthProvider({ children }: { children: ReactNode }) {
     }
   }, [session?.user, loadMembershipsForUser]);
 
+  const activeMembership = memberships.find((m) => m.business_id === activeBusinessId) ?? null;
+
   const value = useMemo<BusinessAuthContextValue>(
     () => ({
       isLoading,
@@ -108,7 +137,8 @@ export function BusinessAuthProvider({ children }: { children: ReactNode }) {
       membershipsLoading,
       membershipsError,
       activeBusinessId,
-      activeMembership: memberships.find((m) => m.business_id === activeBusinessId) ?? null,
+      activeMembership,
+      can: (permission: Permission) => activeMembership?.role === 'owner' || permissionList.includes(permission),
       async setActiveBusinessId(id: string) {
         setActiveBusinessIdState(id);
         await setStoredActiveBusinessId(id);
@@ -169,6 +199,8 @@ export function BusinessAuthProvider({ children }: { children: ReactNode }) {
       membershipsLoading,
       membershipsError,
       activeBusinessId,
+      activeMembership,
+      permissionList,
       refetchMemberships,
     ]
   );

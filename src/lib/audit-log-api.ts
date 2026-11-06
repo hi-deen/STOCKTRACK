@@ -20,6 +20,8 @@ export const AUDIT_ACTIONS = [
   'product.deleted',
   'member.joined',
   'member.removed',
+  'member.role_changed',
+  'role.permissions_updated',
   'rider.joined',
   'rider.removed',
   'rider_assignment.created',
@@ -57,7 +59,7 @@ export const AUDIT_FILTER_GROUPS: { label: string; actions: string[] }[] = [
   { label: 'Products', actions: ['product.created', 'product.updated', 'product.deleted'] },
   { label: 'Purchases', actions: ['stock_purchase.edited', 'stock_purchase.deleted'] },
   { label: 'Expenses', actions: ['expense.edited', 'expense.deleted'] },
-  { label: 'Members', actions: ['member.joined', 'member.removed'] },
+  { label: 'Members', actions: ['member.joined', 'member.removed', 'member.role_changed', 'role.permissions_updated'] },
   {
     label: 'Riders',
     actions: [

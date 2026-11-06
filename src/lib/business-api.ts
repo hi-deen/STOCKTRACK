@@ -18,7 +18,7 @@ export async function fetchMyMemberships(userId: string): Promise<BusinessMember
     const businessName = Array.isArray(business) ? business[0]?.name : business?.name;
     return {
       business_id: row.business_id as string,
-      role: row.role as 'owner' | 'staff',
+      role: row.role as BusinessMembership['role'],
       business_name: businessName ?? 'Unnamed business',
     };
   });

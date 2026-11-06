@@ -27,9 +27,9 @@ import type { ProductUnit } from '@/types/stock';
 export default function EditProductPage() {
   const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
   const { productId } = useParams<{ productId: string }>();
-  const isOwner = activeMembership?.role === 'owner';
+  const canEditCatalog = can('manage_catalog');
 
   const [product, setProduct] = useState<Product | null>(null);
   const [name, setName] = useState('');
@@ -222,7 +222,7 @@ export default function EditProductPage() {
 
             <div className="flex items-center justify-between pt-2">
               <SectionLabel>Selling units</SectionLabel>
-              {isOwner ? (
+              {canEditCatalog ? (
                 <button type="button" className="text-sm font-medium text-primary" onClick={() => setUnitModalTarget('new')}>
                   + Add
                 </button>
@@ -239,11 +239,11 @@ export default function EditProductPage() {
             {(units ?? []).map((u) => (
               <ListRow
                 key={u.id}
-                onClick={isOwner ? () => setUnitModalTarget(u) : undefined}
+                onClick={canEditCatalog ? () => setUnitModalTarget(u) : undefined}
                 title={u.name}
                 subtitle={`= ${u.base_unit_quantity} ${unit} · ${formatMoney(u.default_price)}`}
                 trailing={
-                  isOwner && u.base_unit_quantity !== 1 ? (
+                  canEditCatalog && u.base_unit_quantity !== 1 ? (
                     <span
                       role="button"
                       tabIndex={0}

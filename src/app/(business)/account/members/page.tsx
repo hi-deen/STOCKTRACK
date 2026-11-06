@@ -18,7 +18,8 @@ import { useFocusEffect } from '@/hooks/use-focus-effect';
 import { useBusinessAuth } from '@/lib/business-auth-context';
 import { getErrorMessage } from '@/lib/error-message';
 import { formatDate } from '@/lib/format';
-import { generateInviteCode, getBusinessMembers, removeBusinessMember } from '@/lib/members-api';
+import { generateInviteCode, getBusinessMembers, removeBusinessMember, setMemberRole } from '@/lib/members-api';
+import { ASSIGNABLE_ROLES, roleLabel, type AssignableRole } from '@/lib/permissions';
 import type { BusinessMember } from '@/types/riders-management';
 
 export default function MembersPage() {
@@ -78,6 +79,18 @@ export default function MembersPage() {
     }
   }
 
+  async function changeRole(member: BusinessMember, role: AssignableRole) {
+    if (!activeBusinessId) return;
+    setActionError(null);
+    try {
+      await setMemberRole(activeBusinessId, member.user_id, role);
+      await load();
+      toast.show(`${member.email ?? 'Member'} is now ${roleLabel(role).toLowerCase()}`);
+    } catch (err) {
+      setActionError(getErrorMessage(err, 'Could not change this role.'));
+    }
+  }
+
   if (!activeBusinessId) return null;
 
   return (
@@ -113,7 +126,7 @@ export default function MembersPage() {
               <ListRow
                 key={member.user_id}
                 title={member.email ?? member.user_id}
-                subtitle={`${member.role === 'owner' ? 'Owner' : 'Staff'} · joined ${formatDate(member.joined_at.slice(0, 10))}`}
+                subtitle={`${roleLabel(member.role)} · joined ${formatDate(member.joined_at.slice(0, 10))}`}
                 leading={<Avatar name={member.email ?? member.user_id} />}
                 onClick={canManage && removingUserId !== member.user_id ? () => setSheetMember(member) : undefined}
               />
@@ -127,6 +140,13 @@ export default function MembersPage() {
         onClose={() => setSheetMember(null)}
         title={sheetMember?.email ?? 'Member'}
         actions={[
+          ...ASSIGNABLE_ROLES.filter((role) => role !== sheetMember?.role).map((role) => ({
+            icon: 'people-outline' as const,
+            label: `Make ${roleLabel(role).toLowerCase()}`,
+            onPress: () => {
+              if (sheetMember) changeRole(sheetMember, role);
+            },
+          })),
           {
             icon: 'person-remove-outline',
             label: 'Remove member',

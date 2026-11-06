@@ -21,8 +21,8 @@ import { getErrorMessage } from '@/lib/error-message';
 export default function BusinessSettingsPage() {
   const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership, refetchMemberships } = useBusinessAuth();
-  const isOwner = activeMembership?.role === 'owner';
+  const { activeBusinessId, activeMembership, refetchMemberships, can } = useBusinessAuth();
+  const canEditSettings = can('manage_settings');
   const businessName = activeMembership?.business_name ?? 'this business';
 
   const [loaded, setLoaded] = useState(false);
@@ -59,7 +59,7 @@ export default function BusinessSettingsPage() {
   const restockDaysNumber = Number(restockDays);
   const canSubmit =
     !!activeBusinessId &&
-    isOwner &&
+    canEditSettings &&
     Number.isFinite(paymentDaysNumber) &&
     paymentDaysNumber > 0 &&
     Number.isFinite(restockDaysNumber) &&
@@ -122,7 +122,7 @@ export default function BusinessSettingsPage() {
       <Page narrow>
         {!loaded && !loadError ? <SkeletonRows count={3} avatar={false} /> : null}
         {loadError ? <MessageBox tone="danger" message={loadError} /> : null}
-        {!isOwner ? <MessageBox tone="neutral" message="Only business owners can change these settings." /> : null}
+        {!canEditSettings ? <MessageBox tone="neutral" message="You do not have permission to change these settings." /> : null}
 
         {loaded ? (
           <>
@@ -131,7 +131,7 @@ export default function BusinessSettingsPage() {
                 value={displayName}
                 onChange={(e) => touch(() => setDisplayName(e.target.value))}
                 placeholder="Shown on messages to shops"
-                disabled={!isOwner}
+                disabled={!canEditSettings}
               />
             </Field>
             <Field label="Payment reminder threshold (days)">
@@ -139,7 +139,7 @@ export default function BusinessSettingsPage() {
                 value={paymentDays}
                 onChange={(e) => touch(() => setPaymentDays(e.target.value.replace(/[^0-9]/g, '')))}
                 inputMode="numeric"
-                disabled={!isOwner}
+                disabled={!canEditSettings}
               />
             </Field>
             <Field label="Restock reminder threshold (days)">
@@ -147,15 +147,15 @@ export default function BusinessSettingsPage() {
                 value={restockDays}
                 onChange={(e) => touch(() => setRestockDays(e.target.value.replace(/[^0-9]/g, '')))}
                 inputMode="numeric"
-                disabled={!isOwner}
+                disabled={!canEditSettings}
               />
             </Field>
 
             {saveError ? <MessageBox tone="danger" message={saveError} /> : null}
 
-            {isOwner ? <PrimaryButton label="Save settings" onClick={handleSave} disabled={!canSubmit} loading={saving} /> : null}
+            {canEditSettings ? <PrimaryButton label="Save settings" onClick={handleSave} disabled={!canSubmit} loading={saving} /> : null}
 
-            {isOwner ? (
+            {canEditSettings ? (
               <>
                 <SectionLabel className="pt-4">Danger zone</SectionLabel>
                 <div className="-mx-4 lg:mx-0">

@@ -23,7 +23,7 @@ import type { Batch } from '@/types/stock';
 
 export default function BatchesListPage() {
   const router = useRouter();
-  const { activeBusinessId } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
 
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [products, setProducts] = useState<Map<string, Product>>(new Map());
@@ -79,7 +79,9 @@ export default function BatchesListPage() {
           ))}
         </div>
       </Page>
-      <Fab label="New production run" onPress={() => router.push('/stock/batches/new')} />
+      {can('record_stock') ? (
+        <Fab label="New production run" onPress={() => router.push('/stock/batches/new')} />
+      ) : null}
       <BackToTopButton />
     </>
   );

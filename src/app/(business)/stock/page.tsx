@@ -32,7 +32,7 @@ import type { FinancialSummary, StockItem, StockItemCategory } from '@/types/sto
 
 export default function StockHomePage() {
   const router = useRouter();
-  const { activeBusinessId } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
   const period = usePeriod();
 
   const [items, setItems] = useCachedState<StockItem[] | null>(activeBusinessId ? `stock-items:${activeBusinessId}` : null, null);
@@ -203,7 +203,9 @@ export default function StockHomePage() {
           ))}
         </div>
       </Page>
-      <Fab label="Add" icon="add" onPress={() => setAddOpen(true)} />
+      {can('record_stock') ? (
+        <Fab label="Add" icon="add" onPress={() => setAddOpen(true)} />
+      ) : null}
       <ActionSheet
         visible={addOpen}
         onClose={() => setAddOpen(false)}

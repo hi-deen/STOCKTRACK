@@ -1,7 +1,7 @@
 export interface BusinessMember {
   user_id: string;
   email: string | null;
-  role: 'owner' | 'staff';
+  role: 'owner' | 'admin' | 'staff' | 'observer';
   joined_at: string;
 }
 

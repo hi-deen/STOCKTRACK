@@ -32,9 +32,9 @@ import type { Batch, BatchMaterial, BatchOtherCost, StockItem } from '@/types/st
 export default function BatchDetailPage() {
   const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
   const { batchId } = useParams<{ batchId: string }>();
-  const isOwner = activeMembership?.role === 'owner';
+  const canEditStockRecords = can('manage_stock_records');
 
   const [batch, setBatch] = useState<Batch | null>(null);
   const [materials, setMaterials] = useState<BatchMaterial[]>([]);
@@ -124,8 +124,8 @@ export default function BatchDetailPage() {
   const overflowActions: HeaderAction[] =
     batch && !editing
       ? [
-          { icon: 'create-outline', label: 'Edit production run', onPress: startEditing },
-          ...(isOwner
+          ...(canEditStockRecords ? [{ icon: 'create-outline' as const, label: 'Edit production run', onPress: startEditing }] : []),
+          ...(canEditStockRecords
             ? [{ icon: 'trash-outline' as const, label: 'Delete production run', onPress: () => setDeleteReasonOpen(true) }]
             : []),
         ]

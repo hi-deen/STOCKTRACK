@@ -23,8 +23,8 @@ import type { StockItem, StockPurchase } from '@/types/stock';
 
 export default function StockItemDetailPage() {
   const router = useRouter();
-  const { activeMembership } = useBusinessAuth();
-  const isOwner = activeMembership?.role === 'owner';
+  const { can } = useBusinessAuth();
+  const canEditStockRecords = can('manage_stock_records');
   const { itemId } = useParams<{ itemId: string }>();
 
   const [item, setItem] = useState<StockItem | null>(null);
@@ -82,7 +82,7 @@ export default function StockItemDetailPage() {
               {purchases.map((purchase) => (
                 <ListRow
                   key={purchase.id}
-                  onClick={isOwner ? () => router.push(`/stock/purchases/${purchase.id}/edit`) : undefined}
+                  onClick={canEditStockRecords ? () => router.push(`/stock/purchases/${purchase.id}/edit`) : undefined}
                   title={formatDate(purchase.purchase_date)}
                   subtitle={`${purchaseQuantityLabel(purchase, item.unit)}${purchase.supplier ? ` · ${purchase.supplier}` : ''}`}
                   trailingText={formatMoney(purchase.total_cost)}

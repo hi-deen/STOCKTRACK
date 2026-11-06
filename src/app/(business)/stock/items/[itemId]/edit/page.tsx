@@ -22,9 +22,9 @@ import type { StockItem, StockItemCategory } from '@/types/stock';
 export default function EditStockItemPage() {
   const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
   const { itemId } = useParams<{ itemId: string }>();
-  const isOwner = activeMembership?.role === 'owner';
+  const canEditCatalog = can('manage_catalog');
 
   const [item, setItem] = useState<StockItem | null>(null);
   const [name, setName] = useState('');
@@ -62,7 +62,7 @@ export default function EditStockItemPage() {
 
   const reorderNumber = reorderLevel.trim() ? Number(reorderLevel) : null;
   const canSubmit =
-    isOwner && name.trim().length > 0 && unit.trim().length > 0 && (reorderNumber === null || Number.isFinite(reorderNumber)) && !!itemId;
+    canEditCatalog && name.trim().length > 0 && unit.trim().length > 0 && (reorderNumber === null || Number.isFinite(reorderNumber)) && !!itemId;
 
   async function handleSubmit() {
     if (!canSubmit || isSubmitting || !itemId) return;
@@ -97,7 +97,7 @@ export default function EditStockItemPage() {
             <p className="text-muted">
               Current quantity: {item.current_quantity.toLocaleString()} {item.unit}
             </p>
-            {!isOwner ? <MessageBox tone="neutral" message="Only the business owner can edit stock item details." /> : null}
+            {!canEditCatalog ? <MessageBox tone="neutral" message="You do not have permission to edit stock item details." /> : null}
 
             <Field label="Name">
               <FormInput
@@ -106,7 +106,7 @@ export default function EditStockItemPage() {
                   setDirty(true);
                   setName(e.target.value);
                 }}
-                disabled={!isOwner}
+                disabled={!canEditCatalog}
               />
             </Field>
             <div className="space-y-1.5">
@@ -117,7 +117,7 @@ export default function EditStockItemPage() {
                   setDirty(true);
                   setCategory(v);
                 }}
-                disabled={!isOwner}
+                disabled={!canEditCatalog}
                 options={[
                   { value: 'raw_material', label: 'Raw material' },
                   { value: 'packaging', label: 'Packaging' },
@@ -131,7 +131,7 @@ export default function EditStockItemPage() {
                   setDirty(true);
                   setUnit(e.target.value);
                 }}
-                disabled={!isOwner}
+                disabled={!canEditCatalog}
               />
             </Field>
             <Field label="Reorder level (optional)">
@@ -142,14 +142,14 @@ export default function EditStockItemPage() {
                   setReorderLevel(e.target.value.replace(/[^0-9.]/g, ''));
                 }}
                 inputMode="decimal"
-                disabled={!isOwner}
+                disabled={!canEditCatalog}
               />
             </Field>
             <SwitchRow
               label="Active"
               value={isActive}
               onChange={(v) => {
-                if (!isOwner) return;
+                if (!canEditCatalog) return;
                 setDirty(true);
                 setIsActive(v);
               }}
@@ -157,7 +157,7 @@ export default function EditStockItemPage() {
 
             {error ? <MessageBox tone="danger" message={error} /> : null}
 
-            {isOwner ? (
+            {canEditCatalog ? (
               <PrimaryButton label="Save changes" onClick={handleSubmit} disabled={!canSubmit} loading={isSubmitting} />
             ) : null}
           </>

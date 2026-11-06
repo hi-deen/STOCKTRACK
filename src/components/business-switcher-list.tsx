@@ -1,6 +1,7 @@
 import { Badge } from '@/components/badge';
 import { PressableCard } from '@/components/card';
 import type { BusinessMembership } from '@/types/business';
+import { roleLabel } from '@/lib/permissions';
 
 interface BusinessSwitcherListProps {
   memberships: BusinessMembership[];
@@ -26,7 +27,7 @@ export function BusinessSwitcherList({ memberships, activeBusinessId, onSelect }
               {active ? <Badge tone="success" label="Active" /> : null}
             </span>
             <span className="mt-0.5 block text-sm font-medium text-muted">
-              {membership.role === 'owner' ? 'Owner' : 'Staff'}
+              {roleLabel(membership.role)}
             </span>
           </PressableCard>
         );

@@ -15,9 +15,9 @@ import { shareTextFile } from '@/lib/share-file';
 import { exportShops, importShops, listShops } from '@/lib/shops-api';
 
 export default function ImportExportPage() {
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
   const toast = useToast();
-  const isOwner = activeMembership?.role === 'owner';
+  const canImport = can('remove_shops');
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [isExporting, setIsExporting] = useState(false);
@@ -111,7 +111,7 @@ export default function ImportExportPage() {
         <PrimaryButton label="Export as PDF" variant="outline" onClick={handleExportPdf} loading={isExportingPdf} />
         {exportPdfError ? <MessageBox tone="danger" message={exportPdfError} /> : null}
 
-        {isOwner ? (
+        {canImport ? (
           <>
             <SectionLabel className="pt-4">Import</SectionLabel>
             <p className="text-muted">
@@ -140,7 +140,7 @@ export default function ImportExportPage() {
             ) : null}
           </>
         ) : (
-          <MessageBox tone="neutral" message="Only business owners can import shops." />
+          <MessageBox tone="neutral" message="You do not have permission to import shops." />
         )}
       </Page>
     </>

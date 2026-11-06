@@ -20,7 +20,7 @@ import type { Product } from '@/types/catalog';
 
 export default function ProductsListPage() {
   const router = useRouter();
-  const { activeBusinessId } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
 
   const [products, setProducts] = useState<Product[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,7 +76,9 @@ export default function ProductsListPage() {
           ))}
         </div>
       </Page>
-      <Fab label="Add product" onPress={() => router.push('/shops/products/new')} />
+      {can('manage_catalog') ? (
+        <Fab label="Add product" onPress={() => router.push('/shops/products/new')} />
+      ) : null}
     </>
   );
 }

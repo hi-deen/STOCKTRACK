@@ -29,7 +29,7 @@ function todayDateString(): string {
 
 export default function RemindersPage() {
   const router = useRouter();
-  const { activeBusinessId, userId } = useBusinessAuth();
+  const { activeBusinessId, userId, can } = useBusinessAuth();
 
   const [suggestions, setSuggestions] = useState<ReminderSuggestion[] | null>(null);
   const [pending, setPending] = useState<Reminder[] | null>(null);
@@ -166,7 +166,9 @@ export default function RemindersPage() {
           ))}
         </div>
       </Page>
-      <Fab label="New reminder" onPress={() => router.push('/home/reminders/new')} />
+      {can('record_sales') ? (
+        <Fab label="New reminder" onPress={() => router.push('/home/reminders/new')} />
+      ) : null}
     </>
   );
 }

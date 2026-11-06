@@ -74,7 +74,8 @@ function matchesQuery(shop: OperationsShopRow, query: string): boolean {
 
 export default function OperationsPage() {
   const router = useRouter();
-  const { activeBusinessId, activeMembership, memberships, setActiveBusinessId } = useBusinessAuth();
+  const { activeBusinessId, activeMembership, memberships, setActiveBusinessId, can } = useBusinessAuth();
+  const canRecord = can('record_sales');
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const statsKey = activeBusinessId ? `today-stats:${activeBusinessId}` : null;
   const [summaryStats, setSummaryStats] = useCachedState<DashboardStats | null>(statsKey, null);
@@ -294,8 +295,8 @@ export default function OperationsPage() {
         ) : null}
 
         <div className="flex gap-2 pt-1">
-          <PrimaryButton label="Record delivery" variant="outline" onClick={() => goRecord('delivery', shop)} />
-          <PrimaryButton label="Record payment" variant="outline" onClick={() => goRecord('payment', shop)} />
+          <PrimaryButton label="Record delivery" variant="outline" disabled={!canRecord} onClick={() => goRecord('delivery', shop)} />
+          <PrimaryButton label="Record payment" variant="outline" disabled={!canRecord} onClick={() => goRecord('payment', shop)} />
         </div>
       </Card>
     );
@@ -323,13 +324,13 @@ export default function OperationsPage() {
             icon: 'cube-outline',
             label: 'Record delivery',
             onPress: () => openPicker('delivery'),
-            disabled: !rows || rows.length === 0,
+            disabled: !canRecord || !rows || rows.length === 0,
           },
           {
             icon: 'cash-outline',
             label: 'Record payment',
             onPress: () => openPicker('payment'),
-            disabled: !rows || rows.length === 0,
+            disabled: !canRecord || !rows || rows.length === 0,
           },
         ]}
       />

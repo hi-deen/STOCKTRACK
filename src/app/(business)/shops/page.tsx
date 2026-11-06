@@ -60,7 +60,7 @@ function matchesShopQuery(shop: Shop, query: string): boolean {
 
 function ShopsList() {
   const router = useRouter();
-  const { activeBusinessId } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
   const filter = useSearchParams().get('filter');
   const activeFilter: ShopFilter | null = filter === 'active' || filter === 'balance' ? filter : null;
 
@@ -290,7 +290,9 @@ function ShopsList() {
             })
           : null}
       </Page>
-      <Fab label="Add shop" onPress={() => router.push('/shops/new')} />
+      {can('manage_shops') ? (
+        <Fab label="Add shop" onPress={() => router.push('/shops/new')} />
+      ) : null}
       <BackToTopButton />
     </>
   );

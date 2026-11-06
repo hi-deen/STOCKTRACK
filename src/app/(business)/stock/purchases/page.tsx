@@ -33,8 +33,8 @@ const FETCH_LIMIT = 500;
 export default function PurchasesListPage() {
   const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
-  const isOwner = activeMembership?.role === 'owner';
+  const { activeBusinessId, can } = useBusinessAuth();
+  const canEditStockRecords = can('manage_stock_records');
 
   const [purchases, setPurchases] = useState<StockPurchase[] | null>(null);
   const [items, setItems] = useState<Map<string, StockItem>>(new Map());
@@ -94,7 +94,7 @@ export default function PurchasesListPage() {
     <>
       <ScreenHeader title="Purchases" back primaryActions={[{ icon: 'refresh', label: 'Refresh', onPress: load }]} />
       <Page narrow>
-        {isOwner ? null : <p className="text-sm font-medium text-muted">Only the business owner can edit or delete purchases.</p>}
+        {canEditStockRecords ? null : <p className="text-sm font-medium text-muted">You do not have permission to edit or delete purchases.</p>}
 
         {purchases === null && !loadError ? <SkeletonRows /> : null}
         {loadError ? <MessageBox tone="danger" message={loadError} /> : null}
@@ -134,7 +134,7 @@ export default function PurchasesListPage() {
               <ListRow
                 key={purchase.id}
                 onClick={
-                  isOwner
+                  canEditStockRecords
                     ? () => {
                         setSelected(purchase);
                         setSheetOpen(true);
@@ -150,7 +150,9 @@ export default function PurchasesListPage() {
         </div>
         <ShowMoreControls onShowMore={filtered.length > shownCount ? () => setShownCount((n) => n + PAGE_SIZE) : undefined} />
       </Page>
-      <Fab label="Record purchase" onPress={() => router.push('/stock/purchases/new')} />
+      {can('record_stock') ? (
+        <Fab label="Record purchase" onPress={() => router.push('/stock/purchases/new')} />
+      ) : null}
       <ActionSheet
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}

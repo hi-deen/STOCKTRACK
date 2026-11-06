@@ -45,8 +45,8 @@ const SHOW_MORE_STEP = 10;
 
 export default function ShopDetailPage() {
   const router = useRouter();
-  const { activeBusinessId, activeMembership, userId } = useBusinessAuth();
-  const isOwner = activeMembership?.role === 'owner';
+  const { activeBusinessId, userId, can } = useBusinessAuth();
+  const canRemoveShops = can('remove_shops');
   const { shopId } = useParams<{ shopId: string }>();
 
   const [shop, setShop] = useState<Shop | null>(null);
@@ -201,6 +201,7 @@ export default function ShopDetailPage() {
   function openRecordActions(record: ShopDelivery | ShopPayment, type: 'delivery' | 'payment') {
     // Voided records have nothing left to correct — the server blocks edits.
     if (record.voided_at) return;
+    if (!can('correct_sales') && !can('delete_sales')) return;
     setActionRecord({ type, id: record.id });
   }
 
@@ -210,21 +211,24 @@ export default function ShopDetailPage() {
     const record: ShopDelivery | ShopPayment | undefined =
       type === 'delivery' ? deliveries.find((d) => d.id === actionRecord.id) : payments.find((p) => p.id === actionRecord.id);
     if (!record) return [];
-    const actions: SheetAction[] = [
-      {
-        icon: 'create-outline',
-        label: 'Edit',
-        onPress: () =>
-          type === 'delivery' ? setEditDeliveryTarget(record as ShopDelivery) : setEditPaymentTarget(record as ShopPayment),
-      },
-      {
-        icon: 'arrow-undo-outline',
-        label: 'Correct entry',
-        tone: 'danger',
-        onPress: () => setVoidTarget({ type, id: record.id }),
-      },
-    ];
-    if (isHardDeleteEligible(record, userId)) {
+    const actions: SheetAction[] = [];
+    if (can('correct_sales')) {
+      actions.push(
+        {
+          icon: 'create-outline',
+          label: 'Edit',
+          onPress: () =>
+            type === 'delivery' ? setEditDeliveryTarget(record as ShopDelivery) : setEditPaymentTarget(record as ShopPayment),
+        },
+        {
+          icon: 'arrow-undo-outline',
+          label: 'Correct entry',
+          tone: 'danger',
+          onPress: () => setVoidTarget({ type, id: record.id }),
+        }
+      );
+    }
+    if (can('delete_sales') && isHardDeleteEligible(record, userId)) {
       actions.push({
         icon: 'trash-outline',
         label: 'Delete entirely',
@@ -358,7 +362,7 @@ export default function ShopDetailPage() {
               </div>
             </div>
 
-            {isOwner ? (
+            {canRemoveShops ? (
               <section className="space-y-1">
                 <SectionLabel>Danger zone</SectionLabel>
                 <div className="-mx-4 lg:mx-0">
@@ -435,7 +439,7 @@ export default function ShopDetailPage() {
         initialSellingUnitId={editDeliveryTarget?.selling_unit_id ?? null}
         initialQuantity={editDeliveryTarget?.quantity ?? 0}
         initialDate={editDeliveryTarget?.delivery_date ?? ''}
-        canEditDate={isOwner}
+        canEditDate={can('delete_sales')}
         loading={editLoading}
         error={editError}
         onCancel={() => {
@@ -449,7 +453,7 @@ export default function ShopDetailPage() {
         visible={!!editPaymentTarget}
         initialAmount={editPaymentTarget?.amount ?? 0}
         initialDate={editPaymentTarget?.payment_date ?? ''}
-        canEditDate={isOwner}
+        canEditDate={can('delete_sales')}
         loading={editLoading}
         error={editError}
         onCancel={() => {

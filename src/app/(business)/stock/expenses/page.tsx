@@ -24,8 +24,8 @@ import type { Expense, ExpenseCategory } from '@/types/stock';
 export default function ExpensesListPage() {
   const router = useRouter();
   const toast = useToast();
-  const { activeBusinessId, activeMembership } = useBusinessAuth();
-  const isOwner = activeMembership?.role === 'owner';
+  const { activeBusinessId, can } = useBusinessAuth();
+  const canEditStockRecords = can('manage_stock_records');
 
   const [expenses, setExpenses] = useState<Expense[] | null>(null);
   const [categories, setCategories] = useState<Map<string, ExpenseCategory>>(new Map());
@@ -87,8 +87,8 @@ export default function ExpensesListPage() {
       <Page narrow>
         {expenses !== null ? <p className="text-muted">Total: {formatMoney(total)}</p> : null}
 
-        {expenses !== null && expenses.length > 0 && !isOwner ? (
-          <p className="text-sm font-medium text-muted">Only the business owner can edit or delete expenses.</p>
+        {expenses !== null && expenses.length > 0 && !canEditStockRecords ? (
+          <p className="text-sm font-medium text-muted">You do not have permission to edit or delete expenses.</p>
         ) : null}
 
         {expenses === null && !loadError ? <SkeletonRows /> : null}
@@ -109,7 +109,7 @@ export default function ExpensesListPage() {
             <ListRow
               key={expense.id}
               onClick={
-                isOwner
+                canEditStockRecords
                   ? () => {
                       setSelected(expense);
                       setSheetOpen(true);
@@ -123,7 +123,9 @@ export default function ExpensesListPage() {
           ))}
         </div>
       </Page>
-      <Fab label="New expense" onPress={() => router.push('/stock/expenses/new')} />
+      {can('record_stock') ? (
+        <Fab label="New expense" onPress={() => router.push('/stock/expenses/new')} />
+      ) : null}
       <ActionSheet
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}

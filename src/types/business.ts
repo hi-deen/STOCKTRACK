@@ -1,5 +1,5 @@
 export interface BusinessMembership {
   business_id: string;
-  role: 'owner' | 'staff';
+  role: 'owner' | 'admin' | 'staff' | 'observer';
   business_name: string;
 }
