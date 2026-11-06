@@ -13,6 +13,8 @@ export const PERMISSIONS = [
   { key: 'remove_shops', label: 'Delete shops and import shop lists' },
   { key: 'manage_riders', label: 'Manage riders and their routes' },
   { key: 'manage_settings', label: 'Change business settings' },
+  { key: 'view_finances', label: 'See money: cash, bank balances and what is owed' },
+  { key: 'manage_money', label: 'Record money in and out, and pay suppliers' },
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number]['key'];

@@ -17,6 +17,8 @@ import { getErrorMessage } from '@/lib/error-message';
 import { createExpense, listExpenseCategories } from '@/lib/expenses-api';
 import { toDateString } from '@/lib/format';
 import type { ExpenseCategory } from '@/types/stock';
+import { ChipRow } from '@/components/chip-row';
+import { listMoneyAccounts, type MoneyAccount } from '@/lib/money-api';
 
 export default function NewExpensePage() {
   const router = useRouter();
@@ -29,6 +31,8 @@ export default function NewExpensePage() {
   const [amount, setAmount] = useState('');
   const [expenseDate, setExpenseDate] = useState(() => toDateString(new Date()));
   const [note, setNote] = useState('');
+  const [accounts, setAccounts] = useState<MoneyAccount[]>([]);
+  const [paidFrom, setPaidFrom] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -36,6 +40,9 @@ export default function NewExpensePage() {
     if (!activeBusinessId) return;
     try {
       setCategories(await listExpenseCategories(activeBusinessId));
+      const accountList = await listMoneyAccounts(activeBusinessId);
+      setAccounts(accountList);
+      setPaidFrom((current) => current || accountList.find((a) => a.kind === 'cash')?.id || '');
     } catch (err) {
       setCategoriesError(getErrorMessage(err, 'Could not load expense categories.'));
     }
@@ -59,7 +66,7 @@ export default function NewExpensePage() {
     try {
       await createExpense(
         activeBusinessId,
-        { category_id: categoryId, amount: amountNumber, expense_date: expenseDate, note: note.trim() || null },
+        { category_id: categoryId, amount: amountNumber, expense_date: expenseDate, note: note.trim() || null, account_id: paidFrom || null },
         userId,
       );
       toast.show('Expense added');
@@ -107,6 +114,9 @@ export default function NewExpensePage() {
             <Field label="Note">
               <FormTextarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" rows={2} />
             </Field>
+
+            <SectionLabel>Paid from</SectionLabel>
+            <ChipRow options={accounts.map((a) => ({ value: a.id, label: a.name }))} value={paidFrom} onChange={setPaidFrom} />
 
             {submitError ? <MessageBox tone="danger" message={submitError} /> : null}
 

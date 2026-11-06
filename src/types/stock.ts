@@ -38,6 +38,10 @@ export interface StockPurchase {
   total_cost: number;
   unit_cost: number;
   remaining_quantity: number;
+  // Null while bought on credit and not yet paid.
+  account_id: string | null;
+  on_credit: boolean;
+  paid_date: string | null;
   purchase_date: string;
   supplier: string | null;
   created_by: string | null;
@@ -132,6 +136,7 @@ export interface Expense {
   amount: number;
   expense_date: string;
   note: string | null;
+  account_id: string | null;
   created_by: string | null;
   created_at: string;
 }

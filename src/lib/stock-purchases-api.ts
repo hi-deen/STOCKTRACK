@@ -9,6 +9,9 @@ export interface RecordPurchaseInput {
   purchaseDate: string;
   supplier: string | null;
   createdBy: string | null;
+  // Null with onCredit = bought on credit, paid later from the Money screen.
+  accountId: string | null;
+  onCredit: boolean;
 }
 
 export async function recordPurchase(input: RecordPurchaseInput): Promise<void> {
@@ -20,6 +23,8 @@ export async function recordPurchase(input: RecordPurchaseInput): Promise<void> 
     purchase_date: input.purchaseDate,
     supplier: input.supplier,
     created_by: input.createdBy,
+    account_id: input.accountId,
+    on_credit: input.onCredit,
   });
   if (error) throw error;
 }

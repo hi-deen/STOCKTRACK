@@ -44,6 +44,7 @@ function RecordDelivery() {
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [notes, setNotes] = useState('');
+  const [discount, setDiscount] = useState('');
   const [deliveryDate, setDeliveryDate] = useState(() => toDateString(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -100,6 +101,7 @@ function RecordDelivery() {
   const selectedProduct = products?.find((p) => p.id === selectedProductId) ?? null;
   const selectedUnit = units.find((u) => u.id === selectedUnitId) ?? null;
   const quantityNumber = Number(quantity);
+  const discountNumber = discount === '' ? 0 : Number(discount);
   const canSubmit =
     !!activeBusinessId &&
     !!shopId &&
@@ -108,6 +110,9 @@ function RecordDelivery() {
     !!deliveryDate &&
     Number.isFinite(quantityNumber) &&
     quantityNumber > 0 &&
+    Number.isFinite(discountNumber) &&
+    discountNumber >= 0 &&
+    (!selectedUnit || discountNumber <= quantityNumber * selectedUnit.default_price) &&
     !submitting;
 
   async function handleSubmit() {
@@ -121,6 +126,7 @@ function RecordDelivery() {
       sellingUnitId: selectedUnit.id,
       quantity: quantityNumber,
       unitPrice: selectedUnit.default_price,
+        discount: discountNumber,
       notes: notes.trim() || null,
       createdBy: userId,
       deliveryDate,
@@ -204,8 +210,16 @@ function RecordDelivery() {
               inputMode="decimal"
             />
 
+            <SectionLabel>Discount</SectionLabel>
+            <FormInput
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value.replace(/[^0-9.]/g, ''))}
+              placeholder="Optional: amount off this delivery"
+              inputMode="decimal"
+            />
+
             {selectedUnit && quantityNumber > 0 ? (
-              <p className="tabular-nums text-muted">Total: {formatMoney(quantityNumber * selectedUnit.default_price)}</p>
+              <p className="tabular-nums text-muted">Total: {formatMoney(Math.max(0, quantityNumber * selectedUnit.default_price - discountNumber))}{discountNumber > 0 ? ` after ${formatMoney(discountNumber)} discount` : ''}</p>
             ) : null}
 
             <SectionLabel>Date</SectionLabel>

@@ -34,6 +34,14 @@ export const AUDIT_ACTIONS = [
   'stock_purchase.deleted',
   'expense.edited',
   'expense.deleted',
+  'stock_purchase.paid',
+  'money.recorded',
+  'money.deleted',
+  'money.opening_balance_set',
+  'product_purchase.recorded',
+  'product_purchase.deleted',
+  'product_purchase.paid',
+  'stock.written_off',
 ] as const;
 
 export const AUDIT_FILTER_GROUPS: { label: string; actions: string[] }[] = [
@@ -57,8 +65,18 @@ export const AUDIT_FILTER_GROUPS: { label: string; actions: string[] }[] = [
     ],
   },
   { label: 'Products', actions: ['product.created', 'product.updated', 'product.deleted'] },
-  { label: 'Purchases', actions: ['stock_purchase.edited', 'stock_purchase.deleted'] },
+  {
+    label: 'Purchases',
+    actions: [
+      'stock_purchase.edited',
+      'stock_purchase.deleted',
+      'product_purchase.recorded',
+      'product_purchase.deleted',
+      'stock.written_off',
+    ],
+  },
   { label: 'Expenses', actions: ['expense.edited', 'expense.deleted'] },
+  { label: 'Money', actions: ['stock_purchase.paid', 'product_purchase.paid', 'money.recorded', 'money.deleted', 'money.opening_balance_set'] },
   { label: 'Members', actions: ['member.joined', 'member.removed', 'member.role_changed', 'role.permissions_updated'] },
   {
     label: 'Riders',

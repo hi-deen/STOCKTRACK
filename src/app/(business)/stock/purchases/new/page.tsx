@@ -18,6 +18,8 @@ import { formatDate, formatMoney, toDateString } from '@/lib/format';
 import { listStockItems } from '@/lib/stock-items-api';
 import { listPurchasesForItem, recordPurchase } from '@/lib/stock-purchases-api';
 import type { StockItem, StockPurchase } from '@/types/stock';
+import { ChipRow } from '@/components/chip-row';
+import { listMoneyAccounts, type MoneyAccount } from '@/lib/money-api';
 
 export default function RecordPurchasePage() {
   return (
@@ -42,6 +44,8 @@ function RecordPurchaseForm() {
   const [supplier, setSupplier] = useState('');
   const [supplierEdited, setSupplierEdited] = useState(false);
   const [lastPurchase, setLastPurchase] = useState<StockPurchase | null>(null);
+  const [accounts, setAccounts] = useState<MoneyAccount[]>([]);
+  const [paidFrom, setPaidFrom] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => toDateString(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -51,6 +55,9 @@ function RecordPurchaseForm() {
     try {
       const data = await listStockItems(activeBusinessId);
       setItems(data.filter((i) => i.is_active));
+      const accountList = await listMoneyAccounts(activeBusinessId);
+      setAccounts(accountList);
+      setPaidFrom((current) => current || accountList.find((a) => a.kind === 'cash')?.id || 'credit');
     } catch (err) {
       setItemsError(getErrorMessage(err, 'Could not load stock items.'));
     }
@@ -107,6 +114,8 @@ function RecordPurchaseForm() {
         purchaseDate,
         supplier: supplier.trim() || null,
         createdBy: userId,
+        accountId: paidFrom === 'credit' ? null : paidFrom || null,
+        onCredit: paidFrom === 'credit',
       });
       toast.show('Purchase recorded');
       router.back();
@@ -200,6 +209,9 @@ function RecordPurchaseForm() {
                 placeholder="Optional"
               />
             </Field>
+
+            <SectionLabel>Paid from</SectionLabel>
+            <ChipRow options={[...accounts.map((a) => ({ value: a.id, label: a.name })), { value: 'credit', label: 'On credit (pay later)' }]} value={paidFrom} onChange={setPaidFrom} />
 
             {submitError ? <MessageBox tone="danger" message={submitError} /> : null}
 

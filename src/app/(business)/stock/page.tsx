@@ -214,6 +214,10 @@ export default function StockHomePage() {
           { icon: 'cart-outline', label: 'Record purchase', onPress: () => router.push('/stock/purchases/new') },
           { icon: 'construct-outline', label: 'New production run', onPress: () => router.push('/stock/batches/new') },
           { icon: 'wallet-outline', label: 'Add expense', onPress: () => router.push('/stock/expenses/new') },
+          { icon: 'cart-outline', label: 'Buy finished goods to resell', onPress: () => router.push('/stock/product-purchases/new') },
+          ...(can('manage_stock_records')
+            ? [{ icon: 'trash-outline' as const, label: 'Write off damaged stock', onPress: () => router.push('/stock/write-off') }]
+            : []),
         ]}
       />
       <ActionSheet

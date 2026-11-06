@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { BackToTopButton } from '@/components/back-to-top-button';
-import { ActionSheet } from '@/components/bottom-sheet';
+import { ActionSheet, type SheetAction } from '@/components/bottom-sheet';
 import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
 import { FormInput } from '@/components/form-input';
@@ -25,6 +25,7 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { listStockItems } from '@/lib/stock-items-api';
 import { deletePurchase, listPurchases, purchaseQuantityLabel } from '@/lib/stock-purchases-api';
 import type { StockItem, StockPurchase } from '@/types/stock';
+import { listMoneyAccounts, payPurchase, todayString, type MoneyAccount } from '@/lib/money-api';
 
 const PAGE_SIZE = 50;
 // Search and the period filter run in the browser over this many rows.
@@ -45,6 +46,8 @@ export default function PurchasesListPage() {
   const [selected, setSelected] = useState<StockPurchase | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
+  const [accounts, setAccounts] = useState<MoneyAccount[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -54,6 +57,7 @@ export default function PurchasesListPage() {
       const [purchasesData, itemsData] = await Promise.all([listPurchases(activeBusinessId, FETCH_LIMIT), listStockItems(activeBusinessId)]);
       setPurchases(purchasesData);
       setItems(new Map(itemsData.map((i) => [i.id, i])));
+      setAccounts(await listMoneyAccounts(activeBusinessId));
       setLoadError(null);
     } catch (err) {
       setLoadError(getErrorMessage(err, 'Could not load purchases.'));
@@ -61,6 +65,17 @@ export default function PurchasesListPage() {
   }, [activeBusinessId]);
 
   useFocusEffect(load);
+
+  async function handlePay(accountId: string) {
+    if (!selected) return;
+    try {
+      await payPurchase(selected.id, accountId, todayString());
+      toast.show('Marked as paid');
+      await load();
+    } catch (err) {
+      toast.show(getErrorMessage(err, 'Could not mark this as paid.'));
+    }
+  }
 
   async function handleDelete(reason: string) {
     if (!selected) return;
@@ -90,9 +105,38 @@ export default function PurchasesListPage() {
 
   const selectedItemName = selected ? (items.get(selected.stock_item_id)?.name ?? 'Unknown item') : '';
 
+  const canPay = can('manage_money');
+  const sheetActions: SheetAction[] = [];
+  if (selected && !selected.account_id && canPay) {
+    sheetActions.push({ icon: 'cash-outline', label: 'Mark as paid', onPress: () => setPayOpen(true) });
+  }
+  if (canEditStockRecords) {
+    sheetActions.push(
+      { icon: 'create-outline', label: 'Edit purchase', onPress: () => router.push(`/stock/purchases/${selected?.id}/edit`) },
+      {
+        icon: 'trash-outline',
+        label: 'Delete purchase',
+        tone: 'danger',
+        onPress: () => {
+          if (selected && selected.remaining_quantity < selected.quantity) {
+            toast.show('Used in production runs. Edit or delete those runs first.');
+            return;
+          }
+          setDeleteError(null);
+          setDeleteOpen(true);
+        },
+      }
+    );
+  }
+
   return (
     <>
-      <ScreenHeader title="Purchases" back primaryActions={[{ icon: 'refresh', label: 'Refresh', onPress: load }]} />
+      <ScreenHeader
+        title="Purchases"
+        back
+        primaryActions={[{ icon: 'refresh', label: 'Refresh', onPress: load }]}
+        overflowActions={[{ icon: 'cart-outline', label: 'Bought-in goods', onPress: () => router.push('/stock/product-purchases') }]}
+      />
       <Page narrow>
         {canEditStockRecords ? null : <p className="text-sm font-medium text-muted">You do not have permission to edit or delete purchases.</p>}
 
@@ -134,7 +178,7 @@ export default function PurchasesListPage() {
               <ListRow
                 key={purchase.id}
                 onClick={
-                  canEditStockRecords
+                  canEditStockRecords || (!purchase.account_id && can('manage_money'))
                     ? () => {
                         setSelected(purchase);
                         setSheetOpen(true);
@@ -142,7 +186,7 @@ export default function PurchasesListPage() {
                     : undefined
                 }
                 title={item?.name ?? 'Unknown item'}
-                subtitle={`${purchaseQuantityLabel(purchase, item?.unit ?? '')} · ${formatDate(purchase.purchase_date)}${purchase.supplier ? ` · ${purchase.supplier}` : ''}`}
+                subtitle={`${purchaseQuantityLabel(purchase, item?.unit ?? '')} · ${formatDate(purchase.purchase_date)}${purchase.supplier ? ` · ${purchase.supplier}` : ''}${purchase.account_id ? '' : ' · On credit'}`}
                 trailingText={formatMoney(purchase.total_cost)}
               />
             );
@@ -157,22 +201,17 @@ export default function PurchasesListPage() {
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}
         title={selectedItemName}
-        actions={[
-          { icon: 'create-outline', label: 'Edit purchase', onPress: () => router.push(`/stock/purchases/${selected?.id}/edit`) },
-          {
-            icon: 'trash-outline',
-            label: 'Delete purchase',
-            tone: 'danger',
-            onPress: () => {
-              if (selected && selected.remaining_quantity < selected.quantity) {
-                toast.show('Used in production runs. Edit or delete those runs first.');
-                return;
-              }
-              setDeleteError(null);
-              setDeleteOpen(true);
-            },
-          },
-        ]}
+        actions={sheetActions}
+      />
+      <ActionSheet
+        visible={payOpen}
+        onClose={() => setPayOpen(false)}
+        title="Paid from"
+        actions={accounts.map((account) => ({
+          icon: 'wallet-outline' as const,
+          label: `Paid from ${account.name} today`,
+          onPress: () => handlePay(account.id),
+        }))}
       />
       <PromptModal
         visible={deleteOpen}

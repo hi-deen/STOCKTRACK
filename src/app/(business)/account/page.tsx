@@ -126,6 +126,22 @@ export default function AccountPage() {
           subtitle="People who can access this business"
           onPress={() => router.push('/account/members')}
         />
+        {can('view_finances') ? (
+          <SettingsRow
+            icon="wallet-outline"
+            title="Money"
+            subtitle="Cash, bank, and what is owed"
+            onPress={() => router.push('/account/money')}
+          />
+        ) : null}
+        {can('view_finances') ? (
+          <SettingsRow
+            icon="bar-chart-outline"
+            title="Profit & finances"
+            subtitle="Profit, stock value, trends and warnings"
+            onPress={() => router.push('/account/finance')}
+          />
+        ) : null}
         {isOwner ? (
           <SettingsRow
             icon="people-outline"

@@ -34,6 +34,8 @@ export interface ExpenseInput {
   amount: number;
   expense_date: string;
   note: string | null;
+  // Cash or Bank; the database falls back to Cash.
+  account_id?: string | null;
 }
 
 export async function listExpenses(businessId: string, limit = 50): Promise<Expense[]> {

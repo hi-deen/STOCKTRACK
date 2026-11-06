@@ -14,6 +14,8 @@ import { getErrorMessage } from '@/lib/error-message';
 import { toDateString } from '@/lib/format';
 import { isNetworkError, queueMutation } from '@/lib/offline/db';
 import { recordPayment } from '@/lib/operations-api';
+import { ChipRow } from '@/components/chip-row';
+import { PAYMENT_METHODS } from '@/lib/money-api';
 
 function RecordPayment() {
   const router = useRouter();
@@ -23,7 +25,7 @@ function RecordPayment() {
   const shopName = useSearchParams().get('shopName');
 
   const [amount, setAmount] = useState('');
-  const [method, setMethod] = useState('');
+  const [method, setMethod] = useState('cash');
   const [notes, setNotes] = useState('');
   const [paymentDate, setPaymentDate] = useState(() => toDateString(new Date()));
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +83,7 @@ function RecordPayment() {
         />
 
         <SectionLabel>Method</SectionLabel>
-        <FormInput value={method} onChange={(e) => setMethod(e.target.value)} placeholder="e.g. cash, transfer" />
+        <ChipRow options={PAYMENT_METHODS} value={method} onChange={setMethod} />
 
         <SectionLabel>Date</SectionLabel>
         <FormInput type="date" value={paymentDate} max={toDateString(new Date())} onChange={(e) => setPaymentDate(e.target.value)} />

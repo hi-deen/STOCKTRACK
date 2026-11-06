@@ -21,10 +21,11 @@ import { getReportSummary } from '@/lib/reports-api';
 import { listLowStockItems, listLowStockProducts } from '@/lib/stock-reports-api';
 import type { ActivityItem, DashboardStats } from '@/types/dashboard';
 import type { ReportSummary } from '@/types/reports';
+import { getMoneyPosition } from '@/lib/money-api';
 
 export default function BusinessHomePage() {
   const router = useRouter();
-  const { activeBusinessId } = useBusinessAuth();
+  const { activeBusinessId, can } = useBusinessAuth();
 
   const period = usePeriod();
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -70,6 +71,22 @@ export default function BusinessHomePage() {
     };
   }, [activeBusinessId, period.start, period.end, stats]);
 
+  // Cash on hand, for members allowed to see money. Re-fetched with the stats.
+  const canViewFinances = can('view_finances');
+  const [cashTotal, setCashTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!activeBusinessId || !canViewFinances) return;
+    let active = true;
+    getMoneyPosition(activeBusinessId)
+      .then((position) => {
+        if (active) setCashTotal(position.cash_total);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [activeBusinessId, canViewFinances, stats]);
+
   if (!activeBusinessId) return null;
 
   const statCards = stats
@@ -112,6 +129,15 @@ export default function BusinessHomePage() {
               </PressableCard>
             ))}
           </div>
+        ) : null}
+
+        {canViewFinances && cashTotal !== null ? (
+          <PressableCard onClick={() => router.push('/account/money')}>
+            <span className="block text-sm font-medium text-muted">Cash on hand</span>
+            <span className="mt-1 block truncate text-xl font-semibold leading-tight tabular-nums lg:text-[32px]">
+              {formatMoney(cashTotal)}
+            </span>
+          </PressableCard>
         ) : null}
 
         <SectionLabel>Deliveries and payments</SectionLabel>

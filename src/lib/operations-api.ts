@@ -22,6 +22,8 @@ export interface RecordDeliveryInput {
   sellingUnitId?: string | null;
   quantity: number;
   unitPrice: number;
+  // Amount taken off this delivery's total.
+  discount?: number;
   notes: string | null;
   createdBy: string | null;
   // YYYY-MM-DD; defaults to today (DB default) when omitted.
@@ -36,7 +38,8 @@ export async function recordDelivery(input: RecordDeliveryInput): Promise<void> 
     selling_unit_id: input.sellingUnitId ?? null,
     quantity: input.quantity,
     unit_price: input.unitPrice,
-    total_amount: input.quantity * input.unitPrice,
+    total_amount: Math.max(0, input.quantity * input.unitPrice - (input.discount ?? 0)),
+    discount_amount: input.discount ?? 0,
     notes: input.notes,
     created_by: input.createdBy,
     ...(input.deliveryDate ? { delivery_date: input.deliveryDate } : {}),
