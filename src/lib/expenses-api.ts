@@ -62,18 +62,38 @@ export async function createExpense(
   return data;
 }
 
-export async function updateExpense(expenseId: string, input: Partial<ExpenseInput>): Promise<Expense> {
-  const { data, error } = await supabase
-    .from('expenses')
-    .update(input)
-    .eq('id', expenseId)
-    .select()
-    .single();
+export async function getExpense(expenseId: string): Promise<Expense> {
+  const { data, error } = await supabase.from('expenses').select('*').eq('id', expenseId).single();
   if (error) throw error;
   return data;
 }
 
-export async function deleteExpense(expenseId: string): Promise<void> {
-  const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+export interface EditExpenseInput {
+  expenseId: string;
+  categoryId: string;
+  amount: number;
+  expenseDate: string;
+  note: string | null;
+  reason: string;
+}
+
+// Owner-only, enforced by the RPC; the table grants no direct update/delete.
+export async function editExpense(input: EditExpenseInput): Promise<void> {
+  const { error } = await supabase.rpc('edit_expense', {
+    expense_id_input: input.expenseId,
+    category_id_input: input.categoryId,
+    amount_input: input.amount,
+    expense_date_input: input.expenseDate,
+    note_input: input.note,
+    reason_input: input.reason,
+  });
+  if (error) throw error;
+}
+
+export async function deleteExpense(expenseId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('delete_expense', {
+    expense_id_input: expenseId,
+    reason_input: reason,
+  });
   if (error) throw error;
 }
